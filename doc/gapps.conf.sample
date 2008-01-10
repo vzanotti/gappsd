@@ -1,0 +1,27 @@
+[mysql]
+; MySQL account used to access the gappsd database.
+hostname=
+username=
+password=
+database=
+
+[gapps]
+; Google Apps domain.
+domain=
+
+; "Administrative API" account used for API requests.
+admin-api-username=
+admin-api-password=
+
+; Administrators email, for sending warning/error mails.
+admin-email=
+
+; GAppsd tuning parameters (best kept default).
+[gappsd]
+; Queue parameters
+;queue-min-delay=2       ; Minimal delay between two job execution (in seconds).
+;queue-delay-normal=10   ; Standard delay for normal jobs.
+;queue-delay-offline=30  ; Standard delay for offline jobs.
+;queue-warn-overflow=true; Warn admins on queue overflow
+
+; vim:set syntax=dosini
