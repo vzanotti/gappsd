@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS `gapps_queue` (
   
   -- Job content fields.
   j_type ENUM('r_activity', 'r_accounts', 'u_create', 'u_update', 'u_sync') NOT NULL,
-  j_parameter TEXT DEFAULT NULL,
+  j_parameters TEXT DEFAULT NULL,
   
   -- Job execution result fields.
   r_softfail_date DATETIME DEFAULT NULL,

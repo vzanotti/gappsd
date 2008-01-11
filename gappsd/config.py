@@ -19,13 +19,11 @@
 
 import ConfigParser
 
-print "blih"
-
 class MissingValueError(Exception):
   """Indicates the absence of a mandatory value in the configuration file."""
   pass
 
-class Config:
+class Config(object):
   """Holds and serves configuration values. Values are initialized from a DOS
   .ini formatted file. Values stored with key "k" under section "s" in the ini
   files will be available as "s.k".
@@ -41,7 +39,7 @@ class Config:
     self._data_string = {
       'mysql.hostname': None,
       'mysql.username': None,
-      'mysql.password': None,
+      'mysql.password': "",
       'mysql.database': None,
 
       'gapps.domain': None,
@@ -54,6 +52,8 @@ class Config:
       'gappsd.queue-delay-normal': 10,
       'gappsd.queue-delay-offline': 30,
       'gappsd.queue-warn-overflow': True,
+      'gappsd.job-softfail-delay': 300,
+      'gappsd.job-softfail-threshold': 4,
     }
     
     self.load(config_file)

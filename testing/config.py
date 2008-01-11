@@ -15,32 +15,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import gappsd.config
+import gappsd.config as config
 import ConfigParser
 import unittest
+
+class MockConfig(config.Config):
+  """Provides an always valid configuration object for other tests."""
+  
+  def __init__(self):
+    config.Config.__init__(self, "testdata/config-valid.conf")
+
 
 class TestConfig(unittest.TestCase):
   def testUnparseableFile(self):
     self.assertRaises(ConfigParser.ParsingError,
-                      gappsd.config.Config,
+                      config.Config,
                       "testdata/config-unparseable.conf")
 
   def testMissingValue(self):
-    self.assertRaises(gappsd.config.MissingValueError,
-                      gappsd.config.Config,
+    self.assertRaises(config.MissingValueError,
+                      config.Config,
                       "testdata/config-missingvalue.conf")
 
   def testUnavailableStringOption(self):
-    config = gappsd.config.Config("testdata/config-valid.conf")
-    self.assertRaises(KeyError, config.getString, "gappsd.queue-min-delay")
+    conf = config.Config("testdata/config-valid.conf")
+    self.assertRaises(KeyError, conf.getString, "gappsd.queue-min-delay")
 
   def testUnavailableIntOption(self):
-    config = gappsd.config.Config("testdata/config-valid.conf")
-    self.assertRaises(KeyError, config.getInt, "gapps.domain")
+    conf = config.Config("testdata/config-valid.conf")
+    self.assertRaises(KeyError, conf.getInt, "gapps.domain")
 
   def testPositive(self):
-    config = gappsd.config.Config("testdata/config-valid.conf")
-    self.assertEqual(config.getString("mysql.hostname"), "MH")
-    self.assertEqual(config.getString("gapps.domain"), "GD")
-    self.assertEqual(config.getInt("gappsd.queue-min-delay"), 4)
-    self.assertEqual(config.getInt("gappsd.queue-delay-normal"), 10)
+    conf = config.Config("testdata/config-valid.conf")
+    self.assertEqual(conf.getString("mysql.hostname"), "MH")
+    self.assertEqual(conf.getString("gapps.domain"), "GD")
+    self.assertEqual(conf.getInt("gappsd.queue-min-delay"), 4)
+    self.assertEqual(conf.getInt("gappsd.queue-delay-normal"), 10)

@@ -17,6 +17,7 @@
 
 import unittest
 import testing.config
+import testing.job
 
 if __name__ == '__main__':
   suite = unittest.TestSuite();

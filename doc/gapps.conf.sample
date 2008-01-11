@@ -22,6 +22,8 @@ admin-email=
 ;queue-min-delay=2       ; Minimal delay between two job execution (in seconds).
 ;queue-delay-normal=10   ; Standard delay for normal jobs.
 ;queue-delay-offline=30  ; Standard delay for offline jobs.
-;queue-warn-overflow=true; Warn admins on queue overflow
+;queue-warn-overflow=true; Warn admins on queue overflow.
+;job-softfail-delay=300  ; Seconds before the next try on softfail.
+;job-softfail-threshold=4; Number of softfail to become an hardfail.
 
 ; vim:set syntax=dosini
