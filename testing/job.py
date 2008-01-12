@@ -17,20 +17,8 @@
 
 import gappsd.job as job
 import testing.config
+import testing.database
 import unittest
-
-# TODO: move the MockQueue to testing.queue, and extend it.
-class MockQueue(object):
-  """Simulates the behaviour of class Queue for the Job tests."""
-  
-  def __init__(self):
-    self.last_queue_id = None
-    self.last_values = {}
-  
-  def updateJob(self, queue_id, values):
-    self.last_queue_id = queue_id
-    self.last_values = values
-
 
 # TODO: extend the MockJob
 class MockJob(job.Job):
@@ -53,7 +41,6 @@ class TestJobRegistry(unittest.TestCase):
 
 
 class TestJob(unittest.TestCase):
-  _INVALID_DICT = []
   _VALID_DICT = {
     "q_id": 42, "p_status": "active", "p_entry_date": 1200043549,
     "p_start_date": 1200043559, "r_softfail_count": 1,
@@ -68,56 +55,53 @@ class TestJob(unittest.TestCase):
   
   def setUp(self):
     self.config = testing.config.MockConfig()
-    self.queue = MockQueue()
+    self.sql = testing.database.MockSQL()
+    self.sql.update_result = None
 
   # Instantiation tests.
-  def testInvalidDict(self):
-    self.assertRaises(job.JobContentError, job.Job, \
-                      self.config, self.queue, self._INVALID_DICT)
-
   def testValueMissingDict(self):
     self.assertRaises(job.JobContentError, job.Job, \
-                      self.config, self.queue, self._NO_QID_DICT)
+                      self.config, self.sql, self._NO_QID_DICT)
 
   def testInvalidJsonDict(self):
     self.assertRaises(job.JobContentError, job.Job, \
-                      self.config, self.queue, self._BADJSON_DICT)
+                      self.config, self.sql, self._BADJSON_DICT)
 
   # Status change tests.
   def testStatusIdleOrActive(self):
-    j = job.Job(self.config, self.queue, self._VALID_DICT)
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
     self.assertRaises(job.JobActionError, j.update, job.Job.STATUS_IDLE)
     self.assertRaises(job.JobActionError, j.update, job.Job.STATUS_ACTIVE)
   
   def testStatusSoftfail(self):
-    j_soft = job.Job(self.config, self.queue, self._VALID_DICT)
-    j_hard = job.Job(self.config, self.queue, self._HARDFAIL_DICT)
+    j_soft = job.Job(self.config, self.sql, self._VALID_DICT)
+    j_hard = job.Job(self.config, self.sql, self._HARDFAIL_DICT)
     
     j_soft.update(job.Job.STATUS_SOFTFAIL, "foo")
-    self.assertEqual(self.queue.last_queue_id, j_soft.queue_id)
-    self.assertEqual(self.queue.last_values["p_status"],
+    self.assertEqual(self.sql.update_where["q_id"], j_soft._data['queue_id'])
+    self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_SOFTFAIL)
-    self.assertEqual(self.queue.last_values["r_softfail_count"], 2)
-    self.assertEqual(self.queue.last_values["r_result"], "foo")
+    self.assertEqual(self.sql.update_values["r_softfail_count"], 2)
+    self.assertEqual(self.sql.update_values["r_result"], "foo")
     
     j_hard.update(job.Job.STATUS_SOFTFAIL, "foo")
-    self.assertEqual(self.queue.last_queue_id, j_hard.queue_id)
-    self.assertEqual(self.queue.last_values["p_status"],
+    self.assertEqual(self.sql.update_where["q_id"], j_hard._data['queue_id'])
+    self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_HARDFAIL)
-    self.assertEqual(self.queue.last_values["r_softfail_count"], 4)
-    self.assertEqual(self.queue.last_values["r_result"],
+    self.assertEqual(self.sql.update_values["r_softfail_count"], 4)
+    self.assertEqual(self.sql.update_values["r_result"],
                      "foo [softfail threshold reached]")
 
   def testStatusSuccessOrFailure(self):
-    j_success = job.Job(self.config, self.queue, self._VALID_DICT)
-    j_fail = job.Job(self.config, self.queue, self._VALID_DICT)
+    j_success = job.Job(self.config, self.sql, self._VALID_DICT)
+    j_fail = job.Job(self.config, self.sql, self._VALID_DICT)
 
     j_success.update(job.Job.STATUS_SUCCESS, "foo")
-    self.assertEqual(self.queue.last_queue_id, j_success.queue_id)
-    self.assertEqual(self.queue.last_values["p_status"],
+    self.assertEqual(self.sql.update_where["q_id"], j_success._data['queue_id'])
+    self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_SUCCESS)
 
     j_fail.update(job.Job.STATUS_HARDFAIL, "bar")
-    self.assertEqual(self.queue.last_values["p_status"],
+    self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_HARDFAIL)
-    self.assertEqual(self.queue.last_values["r_result"], "bar")
+    self.assertEqual(self.sql.update_values["r_result"], "bar")
