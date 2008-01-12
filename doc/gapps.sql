@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS `gapps_accounts` (
   g_account_name VARCHAR(256) NOT NULL,
   g_first_name VARCHAR(40) NOT NULL,
   g_last_name VARCHAR(40) NOT NULL,
-  g_status ENUM('unprovisionned', 'disabled', 'active') DEFAULT 'unprovisionned',
+  g_status ENUM('unprovisioned', 'disabled', 'active') DEFAULT 'unprovisioned',
   g_admin BOOL DEFAULT NULL,
   g_suspension VARCHAR(256) DEFAULT NULL,
   

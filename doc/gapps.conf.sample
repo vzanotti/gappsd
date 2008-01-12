@@ -18,6 +18,13 @@ admin-email=
 
 ; GAppsd tuning parameters (best kept default).
 [gappsd]
+; Activity/Summary reports parameters
+;activity-backlog=30     ; Number of days in the past to request the reports of.
+
+; Job processing parameters
+;job-softfail-delay=300  ; Seconds before the next try on softfail.
+;job-softfail-threshold=4; Number of softfail to become an hardfail.
+
 ; Logging parameters
 ;logfile-name=           ; Name of the logfile prefix (use "" for None).
 ;logfile-rotation=1      ; Number of days between two logfile rotations.
@@ -31,7 +38,8 @@ admin-email=
 ;queue-delay-normal=10   ; Standard delay for normal jobs.
 ;queue-delay-offline=30  ; Standard delay for offline jobs.
 ;queue-warn-overflow=true; Warn admins on queue overflow.
-;job-softfail-delay=300  ; Seconds before the next try on softfail.
-;job-softfail-threshold=4; Number of softfail to become an hardfail.
+
+; Token parameters
+;token-expiration=86400  ; Validity of the token, in seconds.
 
 ; vim:set syntax=dosini

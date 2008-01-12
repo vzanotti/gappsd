@@ -48,9 +48,12 @@ class Config(object):
       'gapps.admin-email': None,
 
       'gappsd.logfile-name': '',
-      'gappsd.job-softfail-threshold': 4,
+      'gappsd.logmail-smtp': '',
     }
     self._data_integer = {
+      'gappsd.activity-backlog': 30,
+      'gappsd.job-softfail-delay': 300,
+      'gappsd.job-softfail-threshold': 4,
       'gappsd.logfile-rotation': 1,
       'gappsd.logfile-backlog': 90,
       'gappsd.logmail': False,
@@ -59,8 +62,7 @@ class Config(object):
       'gappsd.queue-delay-normal': 10,
       'gappsd.queue-delay-offline': 30,
       'gappsd.queue-warn-overflow': True,
-      'gappsd.job-softfail-delay': 300,
-      'gappsd.job-softfail-threshold': 4,
+      'gappsd.token-expiration': 86400,
     }
 
     self.load(config_file)
@@ -71,11 +73,11 @@ class Config(object):
     _data_string and _data_integer dictionaries."""
     parser = ConfigParser.RawConfigParser()
     parser.read([config_file])
-    
-    for key in self._data_string.keys():
+
+    for key in self._data_string:
       self._data_string[key] = \
         self.loadKey(parser, key, self._data_string[key])
-    for key in self._data_integer.keys():
+    for key in self._data_integer:
       self._data_integer[key] = \
         int(self.loadKey(parser, key, self._data_integer[key]))
 
@@ -94,16 +96,24 @@ class Config(object):
     """Checks that all the mandatory config options are present. Raises
     MissingValueError on error."""
     for (key, value) in self._data_string.iteritems():
-      if value == None:
+      if value is None:
         raise MissingValueError, key
     for (key, value) in self._data_integer.iteritems():
-      if value == None:
+      if value is None:
         raise MissingValueError, key
 
   def getString(self, key):
     """ Returns the string config value for @p key."""
     return self._data_string[key]
-  
+
+  def setString(self, key, value):
+    """Updates the local configuration with the new (key, value) pair."""
+    self._data_string[key] = value
+
   def getInt(self, key):
     """ Returns the integer config value for @p key."""
     return self._data_integer[key]
+
+  def setInt(self, key, value):
+    """Updates the local configuration with the new (key, value) pair."""
+    self._data_integer[key] = int(value)
