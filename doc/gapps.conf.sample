@@ -18,6 +18,14 @@ admin-email=
 
 ; GAppsd tuning parameters (best kept default).
 [gappsd]
+; Logging parameters
+;logfile-name=           ; Name of the logfile prefix (use "" for None).
+;logfile-rotation=1      ; Number of days between two logfile rotations.
+;logfile-backlog=90      ; Number of old logfiles to keep.
+;logmail=0               ; Activate mail for critical log entries ?
+;logmail-delay=1800      ; Delay between two logmail with identical subjects.
+;logmail-smtp=           ; SMTP server for the by-mail logs.
+
 ; Queue parameters
 ;queue-min-delay=2       ; Minimal delay between two job execution (in seconds).
 ;queue-delay-normal=10   ; Standard delay for normal jobs.
