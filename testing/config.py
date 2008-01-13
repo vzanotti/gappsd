@@ -40,20 +40,22 @@ class TestConfig(unittest.TestCase):
                       config.Config,
                       "testdata/config-missingvalue.conf")
 
-  def testUnavailableStringOption(self):
-    self.assertRaises(KeyError, self.config.getString, "gappsd.queue-min-delay")
-
-  def testUnavailableIntOption(self):
-    self.assertRaises(KeyError, self.config.getInt, "gapps.domain")
+  def testUnavailableOption(self):
+    self.assertRaises(KeyError, self.config.get_string, "foo.bar")
+    self.assertRaises(KeyError, self.config.get_int, "foo.bar")
 
   def testPositive(self):
-    self.assertEquals(self.config.getString("mysql.hostname"), "MH")
-    self.assertEquals(self.config.getString("gapps.domain"), "GD")
-    self.assertEquals(self.config.getInt("gappsd.queue-min-delay"), 4)
-    self.assertEquals(self.config.getInt("gappsd.queue-delay-normal"), 10)
+    self.assertEquals(self.config.get_string("mysql.hostname"), "MH")
+    self.assertEquals(self.config.get_string("gapps.domain"), "GD")
+    self.assertEquals(self.config.get_int("gappsd.queue-min-delay"), 4)
+    self.assertEquals(self.config.get_int("gappsd.queue-delay-normal"), 10)
+
+  def testTypeCast(self):
+    self.assertRaises(ValueError, self.config.get_int, "gapps.domain")
+    self.assertEquals(self.config.get_string("gappsd.queue-min-delay"), "4")
 
   def testConfigUpdate(self):
-    self.config.setString("a", "b")
-    self.assertEquals(self.config.getString("a"), "b")
-    self.config.setInt("a", "42")
-    self.assertEquals(self.config.getInt("a"), 42)
+    self.config.set("a", "b")
+    self.assertEquals(self.config.get_string("a"), "b")
+    self.config.set("a", "42")
+    self.assertEquals(self.config.get_int("a"), 42)
