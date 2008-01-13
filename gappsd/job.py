@@ -49,19 +49,19 @@ class JobRegistry(object):
     # Registers a new Job type.
     class FooJob(Job):
       pass
-    job.job_registry.register('u_foo', FooJob)
+    job.job_registry.Register('u_foo', FooJob)
 
     # Instantiates a job based on its name.
-    job.job_registry.instantiate('u_foo', params, ...)
+    job.job_registry.Instantiate('u_foo', params, ...)
   """
 
   def __init__(self):
     self._job_types = {}
 
-  def register(self, job_type, job_class):
+  def Register(self, job_type, job_class):
     self._job_types[job_type] = job_class;
 
-  def instantiate(self, job_type, *args):
+  def Instantiate(self, job_type, *args):
     try:
       return self._job_types[job_type](*args)
     except KeyError:
@@ -72,16 +72,16 @@ class Job(object):
   """Represents a Job extracted from the queue. This class is supposed to be
   subclassed to define per-job behaviour.
   Subclasses have to:
-    * redefine the run() method (used to run the job)
-    * redefine the isValid() method (used to check job parameters validity)
+    * redefine the Run() method (used to run the job)
+    * redefine the IsValid() method (used to check job parameters validity)
     * implement a constructor that call Job.__init__ properly
 
   Example usage:
     job = Job(config, queue, dict)
     try:
-      job.run()
+      job.Run()
     except JobActionError:
-      job.update(job.STATUS_SOFTFAIL,
+      job.Update(job.STATUS_SOFTFAIL,
                  "JobActionError catched while running the job.")
   """
 
@@ -92,18 +92,18 @@ class Job(object):
   STATUS_SOFTFAIL = "softfail"
   STATUS_HARDFAIL = "hardfail"
 
-  # List of offered data fields to offer data for. Format:
-  #   <field name>: [<sql name>, <modifier>]
+  # List of offered data fields to offer data for. Format: <field>: <modifier>
   _DATA_FIELDS = {
-    "queue_id":       ["q_id",             int],
-    "status":         ["p_status",         None],
-    "entry_date":     ["p_entry_date",     datetime.datetime.fromtimestamp],
-    "start_date":     ["p_start_date",     datetime.datetime.fromtimestamp],
-    "softfail_count": ["r_softfail_count", int],
-    "softfail_date":  ["r_softfail_date",  datetime.datetime.fromtimestamp],
-    "job_type":       ["j_type",           None],
-    "job_parameters": ["j_parameters",     simplejson.loads],
+    "q_id":             int,
+    "p_status":         None,
+    "p_entry_date":     datetime.datetime.fromtimestamp,
+    "p_start_date":     datetime.datetime.fromtimestamp,
+    "r_softfail_count": int,
+    "r_softfail_date":  datetime.datetime.fromtimestamp,
+    "j_type":           None,
+    "j_parameters":     simplejson.loads,
   }
+  _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
   def __init__(self, config, sql, job_dict):
     """Initializes the job using values offered by the dictionary. Throws
@@ -111,36 +111,59 @@ class Job(object):
     """
 
     self._data = {}
-    self._softfail_delay = config.getInt("gappsd.job-softfail-delay")
-    self._softfail_threshold = config.getInt("gappsd.job-softfail-threshold")
+    self._softfail_delay = config.get_int("gappsd.job-softfail-delay")
+    self._softfail_threshold = config.get_int("gappsd.job-softfail-threshold")
     self._sql = sql
 
     try:
-      for (key, (sql_name, modifier)) in self._DATA_FIELDS.items():
-        if modifier is None:
-          self._data[key] = job_dict[sql_name]
+      for key in self._DATA_FIELDS:
+        if self._DATA_FIELDS[key] is None or job_dict[key] is None:
+          self._data[key] = job_dict[key]
         else:
-          self._data[key] = modifier(job_dict[sql_name])
+          self._data[key] = self._DATA_FIELDS[key](job_dict[key])
     except KeyError:
       raise JobContentError, \
-        "Value of %s wasn't found in the job dictionary." % \
-        sys.exc_info()[1]
+        "No value for field '%s' was found." % sys.exc_info()[1]
     except ValueError:
       raise JobContentError, \
-        "Value of JSON-encoded 'j_parameters' field is invalid (%s)." % \
-        sys.exc_info()[1]
+        "Invalid value of JSON field 'j_parameters' (%s)." % sys.exc_info()[1]
 
   def __str__(self):
-    return "Job '%s', queue id %d, created on %s, status '%s' (%d softfail)" % \
-      (self._data['job_type'], self._data['queue_id'], self._data['start_date'],
-       self._data['status'], self._data['softfail_count'])
+    return \
+      "Job '%s', queue id %d, created on %s, status '%s' (%d soft failures)" % \
+      (self._data['j_type'], self._data['q_id'], self._data['p_entry_date'],
+       self._data['p_status'], self._data['r_softfail_count'])
 
-  def update(self, status, message=""):
+  def status(self):
+    return (self._data['p_status'], self._data['r_softfail_count'])
+
+  @staticmethod
+  def MarkFailed(sql, queue_id, message):
+    """Used to mark a non-instantiable job as such. Updates the job as if it
+    was an hard failure."""
+
+    values = {
+      "p_status": Job.STATUS_HARDFAIL,
+      "p_end_date": datetime.datetime.now().strftime(Job._DATE_FORMAT),
+      "r_result": message,
+    }
+    sql.Update("gapps_queue", values, {"q_id": queue_id})
+
+  def MarkActive(self):
+    """Updates the job to the 'currently being processed' status."""
+    values = {
+      "p_status": self.STATUS_ACTIVE,
+      "p_start_date": datetime.datetime.now().strftime(self._DATE_FORMAT),
+    }
+    self._data.update(values)
+    self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
+
+  def Update(self, status, message=""):
     """Updates the object status /in/ the queue (using the queue interface
     to manipulate the queue)."""
 
     values = {}
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.datetime.now().strftime(self._DATE_FORMAT)
 
     if status in (self.STATUS_IDLE, self.STATUS_ACTIVE):
       # Status "idle" is supposed to be set by the queue feeder (ie. the
@@ -149,20 +172,20 @@ class Job(object):
       raise JobActionError, \
         "A job status cannot be set to 'idle' or 'active' mode."
 
-    if status is self.STATUS_SOFTFAIL:
+    if status == self.STATUS_SOFTFAIL:
       # On softfail, the r_softfail_* are updated. When the softfail count
       # reach a predefined threshold, the status becomes hardfail.
-      self._data['softfail_count'] += 1
-      if self._data['softfail_count'] >= self._softfail_threshold:
+      self._data['r_softfail_count'] += 1
+      if self._data['r_softfail_count'] >= self._softfail_threshold:
         status = self.STATUS_HARDFAIL
         message = "%s [softfail threshold reached]" % message
 
       notbefore = \
         datetime.datetime.now() + datetime.timedelta(0, self._softfail_delay)
       values["p_status"] = status
-      values["p_notbefore_date"] = notbefore.strftime("%Y-%m-%d %H:%M:%S")
+      values["p_notbefore_date"] = notbefore.strftime(self._DATE_FORMAT)
       values["r_softfail_date"] = now
-      values["r_softfail_count"] = self._data['softfail_count']
+      values["r_softfail_count"] = self._data['r_softfail_count']
       values["r_result"] = message
 
     if status in (self.STATUS_SUCCESS, self.STATUS_HARDFAIL):
@@ -176,16 +199,16 @@ class Job(object):
       # Status was set to an unknown value, fail.
       raise JobActionError, "Unknown status %s" % status
 
-    self._sql.update("gapps_queue", values, {"q_id": self._data['queue_id']})
+    self._data.update(values)
+    self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
 
   # Empty "abstract" methods.
-  def isValid(self):
+  def IsValid(self):
     return True
 
-  def run(self):
+  def Run(self):
     raise JobActionError, "You can't call run() on a base Job object."
 
 
 # Job registry used by external modules to register new job types.
 job_registry = JobRegistry()
-import provisioning, reporting

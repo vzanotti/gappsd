@@ -2,16 +2,16 @@
 #
 # Copyright (C) 2008 Polytechnique.org
 # Author: Vincent Zanotti (vincent.zanotti@polytechnique.org)
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -33,8 +33,8 @@ class TestJobRegistry(unittest.TestCase):
     self.registry = job.JobRegistry()
 
   def testRegistry(self):
-    self.registry.register('foo', MockJob)
-    mock_job = self.registry.instantiate('foo', 42)
+    self.registry.Register('foo', MockJob)
+    mock_job = self.registry.Instantiate('foo', 42)
 
     self.assertEquals(type(mock_job), MockJob)
     self.assertEquals(mock_job.value, 42)
@@ -52,7 +52,7 @@ class TestJob(unittest.TestCase):
   _BADJSON_DICT.update({"j_parameters": ""})
   _NO_QID_DICT = _VALID_DICT.copy()
   _NO_QID_DICT.pop("q_id")
-  
+
   def setUp(self):
     self.config = testing.config.MockConfig()
     self.sql = testing.database.MockSQL()
@@ -68,24 +68,38 @@ class TestJob(unittest.TestCase):
                       self.config, self.sql, self._BADJSON_DICT)
 
   # Status change tests.
+  def testMarkFailed(self):
+    self.sql.update_values = None
+    job.Job.MarkFailed(self.sql, 42, "blah")
+    self.assertEquals(self.sql.update_values["p_status"],
+                      job.Job.STATUS_HARDFAIL)
+    self.assertEquals(self.sql.update_values["r_result"], "blah")
+    self.assertEquals(self.sql.update_where["q_id"], 42)
+
+  def testMarkActive(self):
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
+    j.MarkActive()
+    self.assertEquals(self.sql.update_values["p_status"], job.Job.STATUS_ACTIVE)
+    self.assertEquals(j._data["p_status"], job.Job.STATUS_ACTIVE)
+
   def testStatusIdleOrActive(self):
     j = job.Job(self.config, self.sql, self._VALID_DICT)
-    self.assertRaises(job.JobActionError, j.update, job.Job.STATUS_IDLE)
-    self.assertRaises(job.JobActionError, j.update, job.Job.STATUS_ACTIVE)
-  
+    self.assertRaises(job.JobActionError, j.Update, job.Job.STATUS_IDLE)
+    self.assertRaises(job.JobActionError, j.Update, job.Job.STATUS_ACTIVE)
+
   def testStatusSoftfail(self):
     j_soft = job.Job(self.config, self.sql, self._VALID_DICT)
     j_hard = job.Job(self.config, self.sql, self._HARDFAIL_DICT)
-    
-    j_soft.update(job.Job.STATUS_SOFTFAIL, "foo")
-    self.assertEqual(self.sql.update_where["q_id"], j_soft._data['queue_id'])
+
+    j_soft.Update(job.Job.STATUS_SOFTFAIL, "foo")
+    self.assertEqual(self.sql.update_where["q_id"], j_soft._data['q_id'])
     self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_SOFTFAIL)
     self.assertEqual(self.sql.update_values["r_softfail_count"], 2)
     self.assertEqual(self.sql.update_values["r_result"], "foo")
-    
-    j_hard.update(job.Job.STATUS_SOFTFAIL, "foo")
-    self.assertEqual(self.sql.update_where["q_id"], j_hard._data['queue_id'])
+
+    j_hard.Update(job.Job.STATUS_SOFTFAIL, "foo")
+    self.assertEqual(self.sql.update_where["q_id"], j_hard._data['q_id'])
     self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_HARDFAIL)
     self.assertEqual(self.sql.update_values["r_softfail_count"], 4)
@@ -96,12 +110,13 @@ class TestJob(unittest.TestCase):
     j_success = job.Job(self.config, self.sql, self._VALID_DICT)
     j_fail = job.Job(self.config, self.sql, self._VALID_DICT)
 
-    j_success.update(job.Job.STATUS_SUCCESS, "foo")
-    self.assertEqual(self.sql.update_where["q_id"], j_success._data['queue_id'])
+    j_success.Update(job.Job.STATUS_SUCCESS, "foo")
+    self.assertEqual(self.sql.update_where["q_id"], j_success._data['q_id'])
     self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_SUCCESS)
 
-    j_fail.update(job.Job.STATUS_HARDFAIL, "bar")
+    j_fail.Update(job.Job.STATUS_HARDFAIL, "bar")
     self.assertEqual(self.sql.update_values["p_status"],
                      job.Job.STATUS_HARDFAIL)
     self.assertEqual(self.sql.update_values["r_result"], "bar")
+    self.assertEquals(j_fail._data["p_status"], job.Job.STATUS_HARDFAIL)
