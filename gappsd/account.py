@@ -34,7 +34,7 @@ def LoadAccountFromDatabase(sql, account_name):
   """Loads an account (indexed by the @p account_name) from the database,
   a returns the corresponding Account object."""
 
-  result = sql.query("SELECT * FROM gapps_accounts WHERE g_account_name = %s",
+  result = sql.Query("SELECT * FROM gapps_accounts WHERE g_account_name = %s",
                      (account_name,))
   if result is None or not len(result):
     return None
@@ -47,12 +47,12 @@ class Account(object):
   Example usage:
     account = Account.loadFromDatabase(sql_object, "<account name>")
     account.set("last_name", "Foo-Bar")
-    account.update(sql_object)
+    account.Update(sql_object)
 
     account = Account("<account name>")
     account.set("last_name", "Foo")
     ...
-    account.create(sql_object)
+    account.Create(sql_object)
   """
 
   # Accounts statuses.
@@ -110,7 +110,7 @@ class Account(object):
     return self._data[key]
 
   # Account creation and update.
-  def create(self, sql):
+  def Create(self, sql):
     """Commits the current representation of the Account (ie. this object)
     to the database, as a new account. Fails if the account already existed."""
 
@@ -125,9 +125,9 @@ class Account(object):
       if key in self._data:
         data[sql_name] = self._data[key]
 
-    sql.insert("gapps_accounts", data)
+    sql.Insert("gapps_accounts", data)
 
-  def update(self, sql):
+  def Update(self, sql):
     """Updates the SQL version of the account, using values updated through the
     set() method of the object."""
 
@@ -137,6 +137,6 @@ class Account(object):
         changed_data[sqlname] = self._data[key]
 
     if len(changed_data):
-      sql.update("gapps_accounts",
+      sql.Update("gapps_accounts",
                  changed_data,
                  {"g_account_name": self._data[self._ACCOUNT_NAME_FIELD]})

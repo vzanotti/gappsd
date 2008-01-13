@@ -2,16 +2,16 @@
 #
 # Copyright (C) 2008 Polytechnique.org
 # Author: Vincent Zanotti (vincent.zanotti@polytechnique.org)
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
 # published by the Free Software Foundation.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -25,17 +25,17 @@ class TestAccount(unittest.TestCase):
     "g_first_name": "foo",
     "g_admin": True,
   }
-  
+
   def setUp(self):
     self.sql = testing.database.MockSQL()
     self.account = account.Account("foo.bar", self._ACCOUNT_DICT)
-  
+
   def testLoadFromDatabase(self):
     self.sql.query_result = None
     self.assertEquals(
       account.LoadAccountFromDatabase(self.sql, "bar.foo"),
       None)
-    
+
     self.sql.query_result = [self._ACCOUNT_DICT]
     a = account.LoadAccountFromDatabase(self.sql, "foo.bar")
     self.assertEquals(self.sql.query_args, ('foo.bar',))
@@ -52,13 +52,13 @@ class TestAccount(unittest.TestCase):
 
   def testCreateMissingFields(self):
     self.assertRaises(account.AccountActionError,
-                      self.account.create, self.sql)
+                      self.account.Create, self.sql)
 
   def testCreate(self):
     self.account.set("last_name", "bar")
     self.sql.insert_result = None
-    self.account.create(self.sql)
-    
+    self.account.Create(self.sql)
+
     self.assertEquals(self.sql.insert_table, "gapps_accounts")
     self.assertEquals(
       self.sql.insert_values,
@@ -68,10 +68,8 @@ class TestAccount(unittest.TestCase):
   def testUpdate(self):
     self.account.set("status", account.Account.STATUS_DISABLED)
     self.sql.update_result = None
-    self.account.update(self.sql)
-    
+    self.account.Update(self.sql)
+
     self.assertEquals(self.sql.update_table, "gapps_accounts")
     self.assertEquals(self.sql.update_values, {'g_status': 'disabled'})
     self.assertEquals(self.sql.update_where, {'g_account_name': 'foo.bar'})
-    
-    
