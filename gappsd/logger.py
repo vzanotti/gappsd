@@ -70,7 +70,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
     self._subjects = {}
 
   # Formating helpers.
-  def prepareRecord(self, record):
+  def _PrepareRecord(self, record):
     """Prepares the record by adding a few other fields, including the date,
     the domain name, the message, the subject (the first line of the message),
     and the body (the rest of the message, comma-indented)."""
@@ -83,29 +83,32 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
     record.subject = record.message.split('\n')[0]
 
   def getSubject(self, record):
-    """Returns the subject of the log email."""
+    """Returns the subject of the log email.
+    Overrides SMTPHandler.getSubject."""
 
     if not "subject" in record.__dict__:
-      self.prepareRecord(record)
+      self._PrepareRecord(record)
     return self._SUBJECT_TEMPLATE % record.__dict__
 
   def format(self, record):
-    """Returns the formatted version of the log mail's body."""
+    """Returns the formatted version of the log mail's body.
+    Overrides SMTPHandler.format."""
 
     if not "subject" in record.__dict__:
-      self.prepareRecord(record)
+      self._PrepareRecord(record)
 
     s = self._MAIL_TEMPLATE % record.__dict__
     if record.exc_info:
       record.exc_text = self.formatException(record.exc_info)
       if record.exc_text:
-        s = s + record.exc_text if s[-1] is '\n' else record.exc_text
+        s = s + record.exc_text if s[-1] == '\n' else record.exc_text
     return s
 
   # Rate-limiting emitter.
   def emit(self, record):
     """Acts as a wrapper to the true emit() function; ignores mails catched by
-    the rate-limit, and forwards the others."""
+    the rate-limit, and forwards the others.
+    Overrides SMTPHandler.emit."""
 
     subject = self.getSubject(record)
     if subject in self._subjects and \
@@ -128,23 +131,23 @@ def InitializeLogging(config, alsologtostderr=False):
     stderr.setFormatter(formatter)
     root_handler.addHandler(stderr)
 
-  if len(config.getString("gappsd.logfile-name")):
+  if len(config.get_string("gappsd.logfile-name")):
     logfile = logging.handlers.TimedRotatingFileHandler(
-      config.getString("gappsd.logfile-name"),
+      config.get_string("gappsd.logfile-name"),
       "midnight",
-      config.getInt("gappsd.logfile-rotation"),
-      config.getInt("gappsd.logfile-backlog"))
+      config.get_int("gappsd.logfile-rotation"),
+      config.get_int("gappsd.logfile-backlog"))
     logfile.setLevel(logging.INFO)
     logfile.setFormatter(formatter)
     root_handler.addHandler(logfile)
 
-  if config.getInt("gappsd.logmail"):
+  if config.get_int("gappsd.logmail"):
     logmail = SmartSMTPHandler(
-      config.getString("gappsd.logmail-smtp"),
-      config.getString("gapps.admin-email"),
-      config.getString("gapps.admin-email"),
-      config.getString("gapps.domain"),
-      config.getInt("gappsd.logmail-delay"))
+      config.get_string("gappsd.logmail-smtp"),
+      config.get_string("gapps.admin-email"),
+      config.get_string("gapps.admin-email"),
+      config.get_string("gapps.domain"),
+      config.get_int("gappsd.logmail-delay"))
     logmail.setLevel(logging.ERROR)
     logmail.setFormatter(formatter)
     root_handler.addHandler(logmail)

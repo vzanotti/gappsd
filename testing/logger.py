@@ -49,7 +49,7 @@ class TestSmartSMTPHandler(unittest.TestCase):
     self.record = MockLogRecord()
 
   def testAddedRecords(self):
-    self.handler.prepareRecord(self.record)
+    self.handler._PrepareRecord(self.record)
     self.assertEquals(self.record.asctime, "2007-01-01 00:42:43")
     self.assertEquals(self.record.domain, "a.org")
     self.assertEquals(self.record.message, "line1\nline2\nline3")
