@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS `gapps_queue` (
   p_end_date DATETIME DEFAULT NULL,
   p_status ENUM('idle', 'active', 'success', 'hardfail', 'softfail') DEFAULT 'idle' NOT NULL,
   p_priority ENUM('immediate', 'normal', 'offline') DEFAULT 'offline' NOT NULL,
+  p_admin_request BOOLEAN DEFAULT false,
   
   -- Job content fields.
   j_type ENUM('r_activity', 'r_accounts', 'u_create', 'u_update', 'u_sync') NOT NULL,
