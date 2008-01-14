@@ -73,7 +73,6 @@ class Job(object):
   subclassed to define per-job behaviour.
   Subclasses have to:
     * redefine the Run() method (used to run the job)
-    * redefine the IsValid() method (used to check job parameters validity)
     * implement a constructor that call Job.__init__ properly
 
   Example usage:
@@ -137,6 +136,7 @@ class Job(object):
   def status(self):
     return (self._data['p_status'], self._data['r_softfail_count'])
 
+  # Status update methods.
   @staticmethod
   def MarkFailed(sql, queue_id, message):
     """Used to mark a non-instantiable job as such. Updates the job as if it
@@ -149,8 +149,20 @@ class Job(object):
     }
     sql.Update("gapps_queue", values, {"q_id": queue_id})
 
+  def MarkAdmin(self):
+    """Marks the job as being an "admin-only" task (eg. administrator's password
+    change, account deletion, ..."""
+    
+    values = {
+      "p_status": self.STATUS_IDLE,
+      "p_start_date": None,
+      "p_admin_request": True,
+    }
+    self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
+
   def MarkActive(self):
     """Updates the job to the 'currently being processed' status."""
+
     values = {
       "p_status": self.STATUS_ACTIVE,
       "p_start_date": datetime.datetime.now().strftime(self._DATE_FORMAT),
@@ -202,12 +214,9 @@ class Job(object):
     self._data.update(values)
     self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
 
-  # Empty "abstract" methods.
-  def IsValid(self):
-    return True
-
+  # "Abstract" implementation of the Run method.
   def Run(self):
-    raise JobActionError, "You can't call run() on a base Job object."
+    raise JobActionError, "You can't call Run() on a base Job object."
 
 
 # Job registry used by external modules to register new job types.

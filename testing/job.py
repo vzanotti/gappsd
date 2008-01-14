@@ -76,6 +76,12 @@ class TestJob(unittest.TestCase):
     self.assertEquals(self.sql.update_values["r_result"], "blah")
     self.assertEquals(self.sql.update_where["q_id"], 42)
 
+  def testMarkAdmin(self):
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
+    j.MarkAdmin()
+    self.assertEquals(self.sql.update_values["p_status"], job.Job.STATUS_IDLE)
+    self.assertEquals(self.sql.update_values["p_admin_request"], True)
+
   def testMarkActive(self):
     j = job.Job(self.config, self.sql, self._VALID_DICT)
     j.MarkActive()
