@@ -1,15 +1,15 @@
 -- Copyright (C) 2008 Polytechnique.org
 -- Author: Vincent Zanotti (vincent.zanotti@polytechnique.org)
--- 
+--
 -- This program is free software: you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License version 2 as
 -- published by the Free Software Foundation.
--- 
+--
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 -- GNU General Public License for more details.
--- 
+--
 -- You should have received a copy of the GNU General Public License
 -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -49,13 +49,13 @@ CREATE TABLE IF NOT EXISTS `gapps_accounts` (
   g_status ENUM('unprovisioned', 'disabled', 'active') DEFAULT 'unprovisioned',
   g_admin BOOL DEFAULT NULL,
   g_suspension VARCHAR(256) DEFAULT NULL,
-  
+
   -- Google-owned fields.
   r_disk_usage BIGINT DEFAULT NULL,
   r_creation DATE DEFAULT NULL,
-  r_last_login DATETIME DEFAULT NULL,
-  r_last_webmail DATETIME DEFAULT NULL,
-  
+  r_last_login DATE DEFAULT NULL,
+  r_last_webmail DATE DEFAULT NULL,
+
   -- Indexes.
   PRIMARY KEY(g_account_name),
   INDEX l_userid(l_userid)
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `gapps_queue` (
   q_id INT NOT NULL AUTO_INCREMENT,
   q_owner_id SMALLINT DEFAULT NULL,
   q_recipient_id SMALLINT DEFAULT NULL,
-  
+
   -- Queue management information.
   p_entry_date DATETIME NOT NULL,
   p_notbefore_date DATETIME NOT NULL,
@@ -78,16 +78,16 @@ CREATE TABLE IF NOT EXISTS `gapps_queue` (
   p_status ENUM('idle', 'active', 'success', 'hardfail', 'softfail') DEFAULT 'idle' NOT NULL,
   p_priority ENUM('immediate', 'normal', 'offline') DEFAULT 'offline' NOT NULL,
   p_admin_request BOOLEAN DEFAULT false,
-  
+
   -- Job content fields.
-  j_type ENUM('r_activity', 'r_accounts', 'u_create', 'u_update', 'u_sync') NOT NULL,
+  j_type ENUM('r_activity', 'r_accounts', 'u_create', 'u_delete', 'u_update', 'u_sync') NOT NULL,
   j_parameters TEXT DEFAULT NULL,
-  
+
   -- Job execution result fields.
   r_softfail_date DATETIME DEFAULT NULL,
   r_softfail_count SMALLINT DEFAULT 0 NOT NULL,
   r_result VARCHAR(256) DEFAULT NULL,
-  
+
   -- Indexes.
   PRIMARY KEY(q_id),
   INDEX q_owner_id(q_owner_id),
