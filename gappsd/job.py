@@ -109,6 +109,7 @@ class Job(object):
     a JobContentError if an important entry is missing.
     """
 
+    self._config = config
     self._data = {}
     self._softfail_delay = config.get_int("gappsd.job-softfail-delay")
     self._softfail_threshold = config.get_int("gappsd.job-softfail-threshold")
@@ -126,6 +127,9 @@ class Job(object):
     except ValueError:
       raise JobContentError, \
         "Invalid value of JSON field 'j_parameters' (%s)." % sys.exc_info()[1]
+
+    # Alias for easier access to job parameters.
+    self._parameters = self._data["j_parameters"]
 
   def __str__(self):
     return \
@@ -152,7 +156,7 @@ class Job(object):
   def MarkAdmin(self):
     """Marks the job as being an "admin-only" task (eg. administrator's password
     change, account deletion, ..."""
-    
+
     values = {
       "p_status": self.STATUS_IDLE,
       "p_start_date": None,
