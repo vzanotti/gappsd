@@ -87,15 +87,24 @@ class TestActivityJob(unittest.TestCase):
 
   def testRunDailyReport(self):
     date20070101 = datetime.date(2007, 1, 1)
+    date20070102 = datetime.date(2007, 1, 2)
     reporting.reporting_api_client.reports = [
+      (date20070101, "summary", [{"date": "20070101", "quota_in_mb": 69}]),
+      (date20070101, "activity", [{"date": "20070101", "usage_in_bytes": 42}]),
       (date20070101, "summary", [{"date": "20070101", "quota_in_mb": 69}]),
       (date20070101, "activity", [{"date": "20070101", "usage_in_bytes": 42}]),
     ]
 
-    self.assertEquals(self.activity.RunDailyReport(date20070101), 1)
+    self.assertEquals(self.activity.RunDailyReport(date20070101,
+                                                   date20070101), 1)
     self.assertEquals(self.sql.insert_values, {
       "date": "20070101", "usage_in_bytes": 42, "quota_in_mb": 69
     })
+
+    self.sql.insert_values = None
+    self.assertEquals(self.activity.RunDailyReport(date20070101,
+                                                   date20070102), 0)
+    self.assertEquals(self.sql.insert_values, None)
 
   def testRun(self):
     yesterday = datetime.date(2007, 1, 1)
@@ -124,7 +133,7 @@ class TestAccountsReport(unittest.TestCase):
     "r_creation": "20070101", "r_last_login": "20070101",
     "r_last_webmail": "20070101", "g_suspension": None,
   }
-  
+
   # Methods to be injected in the AccountsJob object.
   class SQLUsed(Exception):
     pass
@@ -132,7 +141,7 @@ class TestAccountsReport(unittest.TestCase):
     pass
   class SQLReportingUsed(Exception):
     pass
-  
+
   def SynchronizeSQLAccount(self, sql):
     raise self.SQLUsed
   def SynchronizeReportingAccount(self, reporting):
@@ -178,7 +187,7 @@ class TestAccountsReport(unittest.TestCase):
       {"usage_in_bytes": 69, "last_login_date": "20070101"})
     self.assertEquals(self.sql.insert_values, None)
     self.assertEquals(self.sql.update_values["r_disk_usage"], 69)
-    
+
     self.accounts.SynchronizeSQLReportingAccounts(self._ACCOUNT_DICT,
       {"surname": "qux", "last_web_mail_date": "20070102"})
     self.assertEquals(self.sql.insert_values["j_parameters"],
@@ -202,13 +211,13 @@ class TestAccountsReport(unittest.TestCase):
     self.accounts.SynchronizeReportingAccount = self.SynchronizeReportingAccount
     self.accounts.SynchronizeSQLReportingAccounts = \
       self.SynchronizeSQLReportingAccounts
-    
+
     self.sql.query_result = [{"g_account_name": "foo.bar"}]
     reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar"}])
+      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar@a.b"}])
     ]
     self.assertRaises(self.SQLReportingUsed, self.accounts.Run)
-    
+
     self.sql.query_result = [{"g_account_name": "qux.quz"}]
     reporting.reporting_api_client.reports = [
       (datetime.date(2007, 1, 1), "accounts", [])
@@ -217,7 +226,7 @@ class TestAccountsReport(unittest.TestCase):
 
     self.sql.query_result = []
     reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar"}])
+      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar@a.b"}])
     ]
     self.assertRaises(self.ReportingUsed, self.accounts.Run)
 

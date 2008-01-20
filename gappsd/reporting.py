@@ -23,10 +23,7 @@ import datetime
 import google.reporting
 import pytz
 
-import account
-import job
-import logger
-import queue
+import account, job, logger, queue
 from logger import PermanentError, TransientError
 
 class ActivityJob(job.Job):
@@ -42,8 +39,6 @@ class ActivityJob(job.Job):
 
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
-    self._config = config
-    self._sql = sql
 
   # Database interaction.
   def _GetLastReportDate(self):
@@ -84,13 +79,14 @@ class ActivityJob(job.Job):
       dict(filter(lambda (k,v): k in self._SQL_FIELDS, report.items())))
 
   # Job processing.
-  def RunDailyReport(self, date):
+  def RunDailyReport(self, date, first_date):
     """Fetches the activity and summary reports, merges them, and add them to
     the database."""
 
     reporting_client = GetReportingApiClientInstance(self._config)
     activity_reports = reporting_client.GetReport(date, "activity") or []
     summary_reports = reporting_client.GetReport(date, "summary") or []
+    first_date = int(first_date.strftime("%Y%m%d"))
 
     reports = {}
     for report in activity_reports:
@@ -102,8 +98,9 @@ class ActivityJob(job.Job):
 
     daily_reports = 0
     for (report_date, report) in reports.items():
-      self._StoreReport(report_date, report)
-      daily_reports += 1
+      if int(report_date) >= first_date:
+        self._StoreReport(report_date, report)
+        daily_reports += 1
     return daily_reports
 
   def Run(self):
@@ -122,7 +119,7 @@ class ActivityJob(job.Job):
       date = date_list[0]
       date = max(filter(lambda d: d.year == date.year and d.month == date.month,
                         date_list))
-      daily_reports += self.RunDailyReport(date)
+      daily_reports += self.RunDailyReport(date, date_list[0])
       last_report = date
 
     self.Update(self.STATUS_SUCCESS, "%d days processed" % daily_reports)
@@ -142,13 +139,11 @@ class AccountsJob(job.Job):
     "last_web_mail_date": ["r_last_webmail", True],
     "surname":            ["g_last_name",    False],
     "given_name":         ["g_first_name",   False],
-    "suspension_reason":  ["g_suspension",   False],
+    "suspension_reason":  ["g_suspension",   True],
   }
 
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
-    self._config = config
-    self._sql = sql
 
   # SQL Account vs. GApps Account synchronization methods.
   def SynchronizeSQLAccount(self, sql):
@@ -171,14 +166,19 @@ class AccountsJob(job.Job):
     lags at least 12h behind the up-to-date version)."""
 
     a = account.Account(sql["g_account_name"], sql)
+    create_sync_job = False
     for (key, (account_key, silent_update)) in self._FIELDS.items():
       if key in reporting and a.get(account_key) != reporting[key]:
         if silent_update:
           a.set(account_key, reporting[key])
         else:
-          queue.CreateQueueJob(self._sql, 'u_sync',
-                               {"username": a.get("g_account_name")})
+          create_sync_job = True
+
     a.Update(self._sql)
+    if create_sync_job:
+      queue.CreateQueueJob(self._sql, 'u_sync',
+                           {"username": a.get("g_account_name")})
+
 
   # Account list retrieval.
   def FetchSQLAccounts(self):
@@ -188,9 +188,9 @@ class AccountsJob(job.Job):
     sql_select = ", ".join([
       "g_account_id", "g_account_name", "g_first_name", "g_last_name",
       "g_status", "g_suspension", "r_disk_usage",
-      "DATE_FORMAT(r_creation, '%Y%m%d') AS r_creation",
-      "DATE_FORMAT(r_last_login, '%Y%m%d') AS r_last_login",
-      "DATE_FORMAT(r_last_webmail, '%Y%m%d') AS r_last_webmail",
+      "DATE_FORMAT(r_creation, '%%Y%%m%%d') AS r_creation",
+      "DATE_FORMAT(r_last_login, '%%Y%%m%%d') AS r_last_login",
+      "DATE_FORMAT(r_last_webmail, '%%Y%%m%%d') AS r_last_webmail",
     ])
     accounts = self._sql.Query("SELECT %s FROM gapps_accounts" % sql_select)
     return dict([(account["g_account_name"], account) for account in accounts])
@@ -211,6 +211,7 @@ class AccountsJob(job.Job):
     reporting_accounts = self.FetchReportingAccounts()
     for r_account in reporting_accounts:
       try:
+        r_account["account_name"] = r_account["account_name"].split("@")[0]
         s_account = sql_accounts[r_account["account_name"]]
         self.SynchronizeSQLReportingAccounts(s_account, r_account)
         del sql_accounts[r_account["account_name"]]
@@ -249,14 +250,16 @@ class ReportingApiClient(google.reporting.ReportRunner):
         self.Login()
         self.token_expiration = \
           datetime.datetime.now() + datetime.timedelta(0, self.token_validity)
+        logger.info("Reporting API - Authentication succedeed")
       except google.reporting.ConnectionError, error:
-        raise TransientError, "ConnectionError: %s" % error
+        logger.info("Reporting API - Authentication failed with unknown error")
+        raise TransientError, \
+          "ConnectionError in Reporting API authentication: %s" % error
       except google.reporting.LoginError, error:
         if str(error) == 'Authentication failure':
           logger.critical("Reporting API - Authentication refused")
           raise logger.CredentialError, "Bad credential for Reporting API"
         raise TransientError, "LoginError: %s" % error
-      logger.info("Reporting API - Authentication success")
 
   @staticmethod
   def GetLatestReportDate(now_pst=None):
@@ -280,6 +283,8 @@ class ReportingApiClient(google.reporting.ReportRunner):
     request.date = date.strftime("%Y-%m-%d")
 
     try:
+      logger.info("Reporting API - Obtaining report '%s' for '%s'" % \
+                  (report_name, request.date))
       report = self.GetReportData(request)
     except google.reporting.ConnectionError, error:
       raise TransientError, "ConnectionError: %s" % error
