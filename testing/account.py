@@ -39,23 +39,23 @@ class TestAccount(unittest.TestCase):
     self.sql.query_result = [self._ACCOUNT_DICT]
     a = account.LoadAccountFromDatabase(self.sql, "foo.bar")
     self.assertEquals(self.sql.query_args, ('foo.bar',))
-    self.assertEquals(a.get("account_name"), "foo.bar")
-    self.assertEquals(a.get("is_admin"), True)
+    self.assertEquals(a.get("g_account_name"), "foo.bar")
+    self.assertEquals(a.get("g_admin"), True)
 
   def testMutator(self):
     self.assertRaises(account.AccountActionError,
                       self.account.set, "invalid-field", None)
     self.assertRaises(account.AccountActionError,
-                      self.account.set, "account_name", None)
-    self.account.set("last_name", "qux")
-    self.assertEquals(self.account.get("last_name"), "qux")
+                      self.account.set, "g_account_name", None)
+    self.account.set("g_last_name", "qux")
+    self.assertEquals(self.account.get("g_last_name"), "qux")
 
   def testCreateMissingFields(self):
     self.assertRaises(account.AccountActionError,
                       self.account.Create, self.sql)
 
   def testCreate(self):
-    self.account.set("last_name", "bar")
+    self.account.set("g_last_name", "bar")
     self.sql.insert_result = None
     self.account.Create(self.sql)
 
@@ -66,10 +66,18 @@ class TestAccount(unittest.TestCase):
        'g_account_name': 'foo.bar'})
 
   def testUpdate(self):
-    self.account.set("status", account.Account.STATUS_DISABLED)
+    self.account.set("g_status", account.Account.STATUS_DISABLED)
     self.sql.update_result = None
     self.account.Update(self.sql)
 
     self.assertEquals(self.sql.update_table, "gapps_accounts")
     self.assertEquals(self.sql.update_values, {'g_status': 'disabled'})
     self.assertEquals(self.sql.update_where, {'g_account_name': 'foo.bar'})
+
+  def testDelete(self):
+    self.sql.execute_query = None
+    self.account.Delete(self.sql)
+
+    self.assertEquals(self.sql.execute_query,
+                      "DELETE FROM gapps_accounts WHERE g_account_name = %s")
+    self.assertEquals(self.sql.execute_args, ("foo.bar",))

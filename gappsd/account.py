@@ -61,69 +61,71 @@ class Account(object):
   STATUS_ACTIVE = "active"
 
   # List of offered data fields.
-  #   Format: <field name>: [<sql name>, <modifier>, <mandatory>, <readonly>]
+  #   Format: <field name>: [<modifier>, <mandatory>, <readonly>]
   _DATA_FIELDS = {
-    "account_id":   ["g_account_id",   None, False, False],
-    "account_name": ["g_account_name", None, True,  True],
-    "first_name":   ["g_first_name",   None, True,  False],
-    "last_name":    ["g_last_name",    None, True,  False],
-    "status":       ["g_status",       None, False, False],
-    "is_admin":     ["g_admin",        bool, False, False],
-    "suspension":   ["g_suspended",    None, False, False],
-    "disk_usage":   ["r_disk_usage",   None, False, False],
-    "creation":     ["r_creation",     None, False, False],
-    "last_login":   ["r_last_login",   None, False, False],
-    "last_webmail": ["r_last_webmail", None, False, False],
+    "g_account_id":   [None, False, False],
+    "g_account_name": [None, True,  True],
+    "g_first_name":   [None, True,  False],
+    "g_last_name":    [None, True,  False],
+    "g_status":       [None, False, False],
+    "g_admin":        [bool, False, False],
+    "g_suspension":   [None, False, False],
+    "r_disk_usage":   [None, False, False],
+    "r_creation":     [None, False, False],
+    "r_last_login":   [None, False, False],
+    "r_last_webmail": [None, False, False],
   }
-  _ACCOUNT_NAME_FIELD = "account_name"
 
   def __init__(self, account_name, account_dict=None):
     if account_dict is None:
       account_dict = {}
 
-    self._data = {self._ACCOUNT_NAME_FIELD: account_name}
+    self._data = {"g_account_name": account_name}
     self._data_changed = {}
 
     if "g_account_name" in account_dict:
-      if account_dict["g_account_name"] != self._data[self._ACCOUNT_NAME_FIELD]:
+      if account_dict["g_account_name"] != self._data["g_account_name"]:
         raise AccountContentError, \
           "Got different account names from two sources."
 
-    for (key, (sql_name, modifier, m, r)) in self._DATA_FIELDS.items():
-      if sql_name in account_dict:
-        if modifier is None:
-          self._data[key] = account_dict[sql_name]
+    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
+      if key in account_dict:
+        if modifier is None or account_dict[key] is None:
+          self._data[key] = account_dict[key]
         else:
-          self._data[key] = modifier(account_dict[sql_name])
+          self._data[key] = modifier(account_dict[key])
 
   # Data accessors / mutators.
   def set(self, key, value):
     """Updates the value of one of the Account's data fields. Modifying
     read-only or non-existant fields raise an AccountActionError."""
-    if not key in self._DATA_FIELDS or self._DATA_FIELDS[key][3]:
+
+    if not key in self._DATA_FIELDS or self._DATA_FIELDS[key][2]:
       raise AccountActionError, "Non-existent/Read-Only field '%s'" % key
+    if not key in self._data or self._data[key] != value:
+      self._data_changed[key] = True
     self._data[key] = value
-    self._data_changed[key] = True
 
   def get(self, key):
     """Retrieves the value of one of the Account's data fields."""
-    return self._data[key]
 
-  # Account creation and update.
+    return self._data[key] if key in self._data else None
+
+  # Account manipulation.
   def Create(self, sql):
     """Commits the current representation of the Account (ie. this object)
     to the database, as a new account. Fails if the account already existed."""
 
-    if LoadAccountFromDatabase(sql, self.get(self._ACCOUNT_NAME_FIELD)) != None:
+    if LoadAccountFromDatabase(sql, self.get("g_account_name")) != None:
       raise AccountActionError, \
         "Cannot create account, as it already exists in the database."
 
     data = {}
-    for (key, (sql_name, mod, mandatory, ro)) in self._DATA_FIELDS.items():
+    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
       if mandatory and not key in self._data:
         raise AccountActionError, "Missing field '%s' for create." % key
       if key in self._data:
-        data[sql_name] = self._data[key]
+        data[key] = self._data[key]
 
     sql.Insert("gapps_accounts", data)
 
@@ -132,11 +134,18 @@ class Account(object):
     set() method of the object."""
 
     changed_data = {}
-    for (key, (sqlname, mod, mandatory, ro)) in self._DATA_FIELDS.items():
+    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
       if key in self._data_changed and self._data_changed[key]:
-        changed_data[sqlname] = self._data[key]
+        changed_data[key] = self._data[key]
 
     if len(changed_data):
       sql.Update("gapps_accounts",
                  changed_data,
-                 {"g_account_name": self._data[self._ACCOUNT_NAME_FIELD]})
+                 {"g_account_name": self._data["g_account_name"]})
+
+  def Delete(self, sql):
+    """Deletes the SQL version of the account."""
+
+    sql.Execute(
+      "DELETE FROM gapps_accounts WHERE g_account_name = %s",
+      (self._data["g_account_name"],))
