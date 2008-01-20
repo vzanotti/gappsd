@@ -32,6 +32,8 @@ admin-email=
 ;logmail=0               ; Activate mail for critical log entries ?
 ;logmail-delay=1800      ; Delay between two logmail with identical subjects.
 ;logmail-smtp=           ; SMTP server for the by-mail logs.
+;logmail-domain-in-subject=0
+                         ; Add the domain name in the subject of emails.
 
 ; Queue parameters
 ;queue-min-delay=2       ; Minimal delay between two job execution (in seconds).

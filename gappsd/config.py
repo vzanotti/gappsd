@@ -48,6 +48,7 @@ class Config(object):
       'gapps.admin-email': None,
 
       'gappsd.activity-backlog': 30,
+      'gappsd.admin-only-jobs': False,
       'gappsd.job-softfail-delay': 300,
       'gappsd.job-softfail-threshold': 4,
       'gappsd.logfile-backlog': 90,
@@ -55,6 +56,7 @@ class Config(object):
       'gappsd.logfile-rotation': 1,
       'gappsd.logmail': False,
       'gappsd.logmail-delay': 1800,
+      'gappsd.logmail-domain-in-subject': False,
       'gappsd.logmail-smtp': '',
       'gappsd.queue-min-delay': 2,
       'gappsd.queue-delay-normal': 10,
