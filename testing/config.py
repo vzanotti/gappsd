@@ -23,22 +23,22 @@ class MockConfig(config.Config):
   """Provides an always valid configuration object for other tests."""
 
   def __init__(self):
-    config.Config.__init__(self, "testdata/config-valid.conf")
+    config.Config.__init__(self, "testing/data/config-valid.conf")
 
 
 class TestConfig(unittest.TestCase):
   def setUp(self):
-    self.config = config.Config("testdata/config-valid.conf")
+    self.config = config.Config("testing/data/config-valid.conf")
 
   def testUnparseableFile(self):
     self.assertRaises(ConfigParser.ParsingError,
                       config.Config,
-                      "testdata/config-unparseable.conf")
+                      "testing/data/config-unparseable.conf")
 
   def testMissingValue(self):
     self.assertRaises(config.MissingValueError,
                       config.Config,
-                      "testdata/config-missingvalue.conf")
+                      "testing/data/config-missingvalue.conf")
 
   def testUnavailableOption(self):
     self.assertRaises(KeyError, self.config.get_string, "foo.bar")
