@@ -25,6 +25,8 @@ Usage:
 It results in currently two files:
   apps-activity-monthly.png
   apps-activity-yearly.png
+
+TODO(vzanotti): Add vertical bars to indicate weeks.
 """
 
 # Sets up the python path for 'gappsd' and pygooglechart modules inclusion.
@@ -82,7 +84,7 @@ class ChartCreator(object):
 
         weekly_count[week_start] += 1
         for key in row:
-          if key != "date":
+          if key != "date" and row[key]:
             result[week_start][key] += row[key]
 
       # Averages the weekly counts, and creates the final result.
