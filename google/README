@@ -1,4 +1,9 @@
 Google Apps Reporting API client:
   * URL: http://code.google.com/apis/apps/reporting/google_apps_reporting_api.html
-  * Files used: http://google-apps-reporting-api-client.googlecode.com/svn/trunk/python/google/apps/reporting.py
+  * File used: http://google-apps-reporting-api-client.googlecode.com/svn/trunk/python/google/apps/reporting.py
   * Licence: http://google-apps-reporting-api-client.googlecode.com/svn/trunk/python/COPYING
+
+Google Data API Python client:
+  * URL: http://code.google.com/p/gdata-python-client/
+  * Files used: http://gdata-python-client.googlecode.com/svn/trunk/src/atom and http://gdata-python-client.googlecode.com/svn/trunk/src/gdata
+  * License: http://gdata-python-client.googlecode.com/svn/trunk/README.txt
