@@ -32,7 +32,6 @@ TODO(vzanotti): Add vertical bars to indicate weeks.
 # Sets up the python path for 'gappsd' and pygooglechart modules inclusion.
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(os.path.join(os.path.dirname(__file__), 'pygooglechart'))
 
 import collections
 import datetime
@@ -56,7 +55,7 @@ class ChartCreator(object):
     """Retrieves the data for the @p sql_query and @p sql_args, and returns them
     date-indexed for the last @p intervals days. Missing dates receives a None value.
     If the interval is longer than 2 months, aggregates the result by week.
-    
+
     Actually returns the (daylist, data) tuple."""
 
     # Retrieves data from the database.
@@ -73,7 +72,7 @@ class ChartCreator(object):
     # Data-indexes the data (and aggregates the data where required).
     day_list = []
     result = {}
-    
+
     if week_aggregation:
       # Groups the data by week.
       weekly_count = collections.defaultdict(int)
@@ -233,7 +232,7 @@ class ChartCreator(object):
       chart, data, day_list, normalization_factor,
       lambda row: row["num_accounts"])
     chart.set_line_style(line_index, 2)
-      
+
     self.AddDataSerieToChart(
       chart, data, day_list, normalization_factor,
       lambda row: row["num_accounts"] - row["count_90_day_idle"],
@@ -253,7 +252,7 @@ class ChartCreator(object):
     self.AddDataSerieToChart(
       chart, data, day_list, normalization_factor,
       lambda row: 0, fill_color="ff9900")
-    
+
     chart.set_legend((
       '# accounts',
       '90 days actives',

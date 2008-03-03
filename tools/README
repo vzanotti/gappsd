@@ -3,3 +3,6 @@ External tools from the google-apps-daemon project.
 * create-reporting-charts.py
   Generates charts based on reporting data (ie. user activity).
   Uses the pygooglechart library (http://pygooglechart.slowchop.com/)
+
+* pygooglechart.py
+  Local copy of the pygooglechart library (http://pygooglechart.slowchop.com/)
