@@ -25,7 +25,7 @@ import unittest
 
 class MockLogRecord(object):
   """Defines a super-simple mock LogRecord, with only the fields required
-  by the SmartHTTPHandler tests."""
+  by the SmartSMTPHandler tests."""
   def __init__(self):
     self.created = 1167608563
     self.exc_info = None

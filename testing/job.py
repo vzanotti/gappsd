@@ -22,7 +22,7 @@ import unittest
 
 class MockJob(job.Job):
   """Dummy implementation of a Job, used for the JobRegistry test.
-  
+
   Use self.status to set the initial status, and self.run_result to set the
   result of the Run() function.
   Use self.{update_status,update_result,marked} to retrieve the parameters used
@@ -46,6 +46,7 @@ class MockJob(job.Job):
 
   def MarkActive(self):
     self.marked = 'active'
+    self._status = 'active'
 
   def Update(self, status, message=""):
     self._status = status

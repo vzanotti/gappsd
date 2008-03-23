@@ -161,7 +161,7 @@ class TestAccountsReport(unittest.TestCase):
     self.sql.insert_result = None
     self.accounts.SynchronizeSQLAccount({
       "g_account_name": "foo.bar",
-      "p_status": "active",
+      "g_status": "active",
     })
     self.assertEquals(self.sql.insert_values["j_parameters"],
                       '{"username": "foo.bar"}')
@@ -169,7 +169,7 @@ class TestAccountsReport(unittest.TestCase):
     self.sql.insert_values = None
     self.accounts.SynchronizeSQLAccount({
       "g_account_name": "qux.quz",
-      "p_status": "unprovisioned",
+      "g_status": "unprovisioned",
     })
     self.assertEquals(self.sql.insert_values, None)
 
