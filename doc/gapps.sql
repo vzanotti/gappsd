@@ -15,7 +15,7 @@
 
 
 -- Table `gapps_reporting`.
--- The table contains daily statistics of the Google Apps fomain. They are
+-- The table contains daily statistics of the Google Apps domain. They are
 -- obtained with the Summary and Actvity reports of the Google Apps Reorting
 -- API.
 CREATE TABLE IF NOT EXISTS `gapps_reporting` (
@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS `gapps_reporting` (
 -- the Google Apps domain.
 CREATE TABLE IF NOT EXISTS `gapps_accounts` (
   -- Application-specific fields.
-  l_userid SMALLINT DEFAULT NULL,
+  l_userid SMALLINT UNSIGNED DEFAULT NULL,
+  l_active_redirection BOOL DEFAULT FALSE,
   l_sync_password BOOL DEFAULT NULL,
 
   -- Shared fields.
@@ -77,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `gapps_queue` (
   p_end_date DATETIME DEFAULT NULL,
   p_status ENUM('idle', 'active', 'success', 'hardfail', 'softfail') DEFAULT 'idle' NOT NULL,
   p_priority ENUM('immediate', 'normal', 'offline') DEFAULT 'offline' NOT NULL,
-  p_admin_request BOOLEAN DEFAULT false,
+  p_admin_request BOOLEAN DEFAULT false NOT NULL,
 
   -- Job content fields.
   j_type ENUM('r_activity', 'r_accounts', 'u_create', 'u_delete', 'u_update', 'u_sync') NOT NULL,
