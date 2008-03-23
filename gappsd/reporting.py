@@ -150,7 +150,7 @@ class AccountsJob(job.Job):
     """Synchronizes the SQL account based on the fact the account did not
     show up in the reporting log."""
 
-    if sql["p_status"] != "unprovisioned":
+    if sql["g_status"] != "unprovisioned":
       queue.CreateQueueJob(self._sql, 'u_sync',
                            {"username": sql["g_account_name"]})
 
