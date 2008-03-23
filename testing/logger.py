@@ -62,7 +62,7 @@ class TestSmartSMTPHandler(unittest.TestCase):
 
   def testFormat(self):
     self.assertEquals(self.handler.format(self.record),
-      "Date: 2007-01-01 00:42:43\nError: line1\nDetails:\n  line2\n  line3")
+      "Date: 2007-01-01 00:42:43\nMessage: line1\nDetails:\n  line2\n  line3")
 
   def testRateLimiter(self):
     """Tests the rate-limiter by sending two times the same message (the first

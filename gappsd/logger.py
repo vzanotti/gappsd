@@ -55,9 +55,10 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
 
   _MAIL_TEMPLATE = \
     "Date: %(asctime)s\n" \
-    "Error: %(subject)s\n" \
+    "Message: %(subject)s\n" \
     "Details:\n%(spmessage)s"
-  _SUBJECT_TEMPLATE = "[gappsd-%(domain)s] %(subject)s"
+  _SUBJECT_TEMPLATE_DOMAIN = "[gappsd-%(domain)s] %(subject)s"
+  _SUBJECT_TEMPLATE_NODOMAIN = "[gappsd] %(subject)s"
 
   def __init__(self, mailhost, fromaddr, toaddrs, domain, delay):
     """Initializes the SMTPHandler, and use the @p delay argument as the
@@ -68,6 +69,11 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
     self._delay = datetime.timedelta(0, delay)
     self._domain = domain
     self._subjects = {}
+
+    if self._domain:
+      self._mail_subject = self._SUBJECT_TEMPLATE_DOMAIN
+    else:
+      self._mail_subject = self._SUBJECT_TEMPLATE_NODOMAIN
 
   # Formating helpers.
   def _PrepareRecord(self, record):
@@ -88,7 +94,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
 
     if not "subject" in record.__dict__:
       self._PrepareRecord(record)
-    return self._SUBJECT_TEMPLATE % record.__dict__
+    return self._mail_subject % record.__dict__
 
   def format(self, record):
     """Returns the formatted version of the log mail's body.
@@ -142,11 +148,15 @@ def InitializeLogging(config, alsologtostderr=False):
     root_handler.addHandler(logfile)
 
   if config.get_int("gappsd.logmail"):
+    if config.get_int("gappsd.logmail-domain-in-subject"):
+      domain = config.get_string("gapps.domain")
+    else:
+      domain = None
     logmail = SmartSMTPHandler(
       config.get_string("gappsd.logmail-smtp"),
       config.get_string("gapps.admin-email"),
       config.get_string("gapps.admin-email"),
-      config.get_string("gapps.domain"),
+      domain,
       config.get_int("gappsd.logmail-delay"))
     logmail.setLevel(logging.ERROR)
     logmail.setFormatter(formatter)
