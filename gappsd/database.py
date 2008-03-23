@@ -23,6 +23,7 @@ import MySQLdb
 import MySQLdb.cursors as cursors
 import warnings
 
+import logger
 from logger import PermanentError, TransientError
 
 class SQLTransientError(TransientError):
@@ -65,7 +66,8 @@ class SQL(object):
     if self._connection == None:
       try:
         self._connection = MySQLdb.connect(
-          host=self._host, user=self._user, passwd=self._pass, db=self._db)
+          host=self._host, user=self._user, passwd=self._pass, db=self._db,
+          charset='utf8', use_unicode=False)
       except MySQLdb.Error, message:
         raise SQLTransientError, "Error: %s" % message
 
