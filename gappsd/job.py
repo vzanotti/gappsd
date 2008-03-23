@@ -162,6 +162,7 @@ class Job(object):
       "p_start_date": None,
       "p_admin_request": True,
     }
+    self._data.update(values)
     self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
 
   def MarkActive(self):

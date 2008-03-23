@@ -20,13 +20,41 @@ import testing.config
 import testing.database
 import unittest
 
-# TODO: extend the MockJob
 class MockJob(job.Job):
-  """Dummy implementation of a Job."""
+  """Dummy implementation of a Job, used for the JobRegistry test.
+  
+  Use self.status to set the initial status, and self.run_result to set the
+  result of the Run() function.
+  Use self.{update_status,update_result,marked} to retrieve the parameters used
+  to call Marked*() and Update() functions.
+  """
 
-  def __init__(self, value):
-    self.value = value
+  def __init__(self, config, sql, job_dict):
+    self.config = config
+    self.marked = None
+    self.run_result = None
+    self.update_status = None
+    self.update_message = None
+    self._data = job_dict
+    self._status = 'idle'
 
+  def status(self):
+    return (self._status, 0)
+
+  def MarkAdmin(self):
+    self.marked = 'admin'
+
+  def MarkActive(self):
+    self.marked = 'active'
+
+  def Update(self, status, message=""):
+    self._status = status
+    self.update_status = status
+    self.update_message = message
+
+  def Run(self):
+    if isinstance(self.run_result, Exception):
+      raise self.run_result
 
 class TestJobRegistry(unittest.TestCase):
   def setUp(self):
@@ -34,10 +62,10 @@ class TestJobRegistry(unittest.TestCase):
 
   def testRegistry(self):
     self.registry.Register('foo', MockJob)
-    mock_job = self.registry.Instantiate('foo', 42)
+    mock_job = self.registry.Instantiate('foo', 42, None, None)
 
     self.assertEquals(type(mock_job), MockJob)
-    self.assertEquals(mock_job.value, 42)
+    self.assertEquals(mock_job.config, 42)
 
 
 class TestJob(unittest.TestCase):
@@ -126,3 +154,7 @@ class TestJob(unittest.TestCase):
                      job.Job.STATUS_HARDFAIL)
     self.assertEqual(self.sql.update_values["r_result"], "bar")
     self.assertEquals(j_fail._data["p_status"], job.Job.STATUS_HARDFAIL)
+
+# Module initialization (registers MockJob in the global registry for other
+# test modules).
+job.job_registry.Register('mock', MockJob)
