@@ -44,4 +44,4 @@ admin-email=
 ; Token parameters
 ;token-expiration=86400  ; Validity of the token, in seconds.
 
-; vim:set syntax=dosini
+; vim:set syntax=dosini:
