@@ -15,24 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import logging
+"""TODO"""
+
+import gappsd.daemon as daemon
 import unittest
-import testing.account
-import testing.config
-import testing.daemon
-import testing.database
-import testing.job
-import testing.logger
-import testing.provisioning
-import testing.queue
-import testing.reporting
-
-if __name__ == '__main__':
-  logging.root.setLevel(logging.CRITICAL + 1)
-
-  suite = unittest.TestSuite();
-  for module in dir(testing):
-    suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(
-      testing.__dict__[module]
-    ))
-  unittest.TextTestRunner().run(suite)
