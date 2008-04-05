@@ -137,10 +137,9 @@ class UserDeleteJob(UserJob):
 
     # Checks that (in admin mode) the job is not requesting the deletion of
     # an administrator.
-    if "admin" in user.login.extension_attributes:
-      if user.login.extension_attributes["admin"]:
-        raise PermanentError, "Administrators cannot be deleted directly, you" \
-          " must remove their status first."
+    if user.login.admin == 'false':
+      raise PermanentError, "Administrators cannot be deleted directly, you" \
+        " must remove their admin status first."
 
     # Removes the account from the databases.
     self._api_client.DeleteUser(self._parameters["username"])
@@ -179,11 +178,8 @@ class UserSynchronizeJob(UserJob):
   def SynchronizeNoSQL(sql, user_entry):
     """Creates the SQL account based on the Google's UserEntry data."""
 
-    suspended = user_entry.login.suspended.lower() == 'true'
-    if "admin" in user_entry.login.extension_attributes:
-      admin = user_entry.login.extension_attributes["admin"].lower() == 'true'
-    else:
-      admin = False
+    admin = user_entry.login.admin == 'true'
+    suspended = user_entry.login.suspended == 'true'
 
     a = account.Account(user_entry.login.user_name)
     a.set('g_first_name', user_entry.name.given_name)
@@ -229,10 +225,7 @@ class UserSynchronizeJob(UserJob):
         (account.get("g_account_name"), account.get("g_suspension")))
 
     account_admin = account.get('g_admin') or False
-    if "admin" in user_entry.login.extension_attributes:
-      admin = user_entry.login.extension_attributes["admin"] == 'true'
-    else:
-      admin = False
+    admin = user_entry.login.admin == 'true'
     if admin and not account_admin:
       logger.error(
         "Account '%s' is now administrator of the domain" % \
@@ -279,17 +272,14 @@ class UserUpdateJob(UserJob):
     # In non-privileged mode, refuses to update the password, suspension status,
     # or admin status of an administrator.
     if not self._config.get_int("gappsd.admin-only-jobs"):
-      if str(user.login.extension_attributes["admin"]).lower == 'true':
-        if "suspended" in self._parameters or "password" in self._parameters:
-          self.MarkAdmin()
-          return
-      if "admin" in self._parameters:
+      if "admin" in self._parameters or (user.login.admin == 'true' and \
+          ("suspended" in self._parameters or "password" in self._parameters)):
         self.MarkAdmin()
         return
 
     # Updates the Google account.
     if "admin" in self._parameters:
-      user.login.login.extension_attributes["admin"] = self._parameters["admin"]
+      user.login.admin = self._parameters["admin"]
     if "first_name" in self._parameters:
       user.name.given_name = self._parameters["first_name"]
     if "last_name" in self._parameters:
