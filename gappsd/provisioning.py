@@ -403,6 +403,13 @@ class ProvisioningApiClient(object):
         "Other error for Provisioning API request:\n" + \
         traceback.format_exc(error)
 
+    # Temporary workaround for incorrect UTF-8 processing in gdata-python-client.
+    # Cf. http://groups.google.com/group/google-apps-apis/browse_thread/thread/dfc460bb4ad387fb/74278fcf03db27f8?hl=en#74278fcf03db27f8
+    # Cf. http://code.google.com/p/gdata-python-client/issues/detail?id=101
+    if isinstance(result, gdata.apps.UserEntry):
+      result.name.family_name = result.name.family_name.decode("utf8")
+      result.name.given_name = result.name.given_name.decode("utf8")
+
     return result
 
   # Proxy methods, used to normalize the raised exceptions. Methods starting

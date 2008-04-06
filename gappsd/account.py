@@ -91,7 +91,10 @@ class Account(object):
     for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
       if key in account_dict:
         if modifier is None or account_dict[key] is None:
-          self._data[key] = account_dict[key]
+          if isinstance(account_dict[key], str):
+            self._data[key] = account_dict[key].decode("utf8")
+          else:
+            self._data[key] = account_dict[key]
         else:
           self._data[key] = modifier(account_dict[key])
 
