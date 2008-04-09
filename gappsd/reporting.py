@@ -212,6 +212,8 @@ class AccountsJob(job.Job):
     for r_account in reporting_accounts:
       try:
         r_account["account_name"] = r_account["account_name"].split("@")[0]
+        r_account["surname"] = r_account["surname"].decode("utf8")
+        r_account["given_name"] = r_account["given_name"].decode("utf8")
         s_account = sql_accounts[r_account["account_name"]]
         self.SynchronizeSQLReportingAccounts(s_account, r_account)
         del sql_accounts[r_account["account_name"]]
