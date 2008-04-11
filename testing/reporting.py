@@ -214,7 +214,11 @@ class TestAccountsReport(unittest.TestCase):
 
     self.sql.query_result = [{"g_account_name": "foo.bar"}]
     reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar@a.b"}])
+      (datetime.date(2007, 1, 1), "accounts", [{
+        "account_name": "foo.bar@a.b",
+        "surname": "foo",
+        "given_name": "bar",
+      }])
     ]
     self.assertRaises(self.SQLReportingUsed, self.accounts.Run)
 
@@ -226,7 +230,11 @@ class TestAccountsReport(unittest.TestCase):
 
     self.sql.query_result = []
     reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{"account_name": "foo.bar@a.b"}])
+      (datetime.date(2007, 1, 1), "accounts", [{
+        "account_name": "foo.bar@a.b",
+        "surname": "foo",
+        "given_name": "bar",
+      }])
     ]
     self.assertRaises(self.ReportingUsed, self.accounts.Run)
 
