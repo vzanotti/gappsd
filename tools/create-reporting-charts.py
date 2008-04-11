@@ -22,14 +22,14 @@ Usage:
   create-reporting-charts.py \
     --config-file /path/to/config/file \
     --destination /path/to/produced/charts
-It results in currently two files:
+It currently results in two files:
   apps-activity-monthly.png
   apps-activity-yearly.png
 
 TODO(vzanotti): Add vertical bars to indicate weeks.
 """
 
-# Sets up the python path for 'gappsd' and pygooglechart modules inclusion.
+# Sets up the python path for 'gappsd' modules inclusion.
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
