@@ -85,10 +85,10 @@ class Account(object):
 
     if "g_account_name" in account_dict:
       if account_dict["g_account_name"] != self._data["g_account_name"]:
-        raise AccountContentError, \
-          "Got different account names from two sources."
+        raise AccountContentError( \
+          "Got different account names from two sources.")
 
-    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
+    for (key, (modifier, mandatory, ro)) in list(self._DATA_FIELDS.items()):
       if key in account_dict:
         if modifier is None or account_dict[key] is None:
           if isinstance(account_dict[key], str):
@@ -104,7 +104,7 @@ class Account(object):
     read-only or non-existant fields raise an AccountActionError."""
 
     if not key in self._DATA_FIELDS or self._DATA_FIELDS[key][2]:
-      raise AccountActionError, "Non-existent/Read-Only field '%s'" % key
+      raise AccountActionError("Non-existent/Read-Only field '%s'" % key)
     if not key in self._data or self._data[key] != value:
       self._data_changed[key] = True
     self._data[key] = value
@@ -120,13 +120,13 @@ class Account(object):
     to the database, as a new account. Fails if the account already existed."""
 
     if LoadAccountFromDatabase(sql, self.get("g_account_name")) != None:
-      raise AccountActionError, \
-        "Cannot create account, as it already exists in the database."
+      raise AccountActionError( \
+        "Cannot create account, as it already exists in the database.")
 
     data = {}
-    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
+    for (key, (modifier, mandatory, ro)) in list(self._DATA_FIELDS.items()):
       if mandatory and not key in self._data:
-        raise AccountActionError, "Missing field '%s' for create." % key
+        raise AccountActionError("Missing field '%s' for create." % key)
       if key in self._data:
         data[key] = self._data[key]
 
@@ -137,7 +137,7 @@ class Account(object):
     set() method of the object."""
 
     changed_data = {}
-    for (key, (modifier, mandatory, readonly)) in self._DATA_FIELDS.items():
+    for (key, (modifier, mandatory, ro)) in list(self._DATA_FIELDS.items()):
       if key in self._data_changed and self._data_changed[key]:
         changed_data[key] = self._data[key]
 

@@ -39,14 +39,14 @@ class MockReportingApiClient(object):
 
   def GetReport(self, date, report_name):
     if not len(self.reports):
-      raise logger.TransientError, \
-        "Unexpected request (%s, %s)" % (date, report_name)
+      raise logger.TransientError( \
+        "Unexpected request (%s, %s)" % (date, report_name))
     if date != self.reports[-1][0]:
       self.reports.pop()
-      raise logger.TransientError, "Bad report date"
+      raise logger.TransientError("Bad report date")
     if report_name != self.reports[-1][1]:
       self.reports.pop()
-      raise logger.TransientError, "Bad report name"
+      raise logger.TransientError("Bad report name")
 
     return self.reports.pop()[2]
 
@@ -251,7 +251,7 @@ class TestReportingApiClient(unittest.TestCase):
 
   def GetReportData(self, request):
     self.request = request
-    if type(self.request_result) is str:
+    if isinstance(self.request_result, str):
       return self.request_result
     raise self.request_result
 

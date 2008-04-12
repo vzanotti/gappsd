@@ -23,8 +23,9 @@ import simplejson
 import sys
 import time
 
-import database, job, logger
-from logger import PermanentError, TransientError
+import database, job
+from . import logger
+from .logger import PermanentError, TransientError
 
 def CreateQueueJob(sql, j_type, j_parameters={}, p_priority="normal",
                    p_entry_date=None, p_notbefore_date=None):
@@ -137,7 +138,7 @@ class Queue(object):
         job_count = job_counts[queue]
         normal_delay = self._delays[queue]
       except KeyError:
-        raise PermanentError, "Priority queue '%s' not supported." % queue
+        raise PermanentError("Priority queue '%s' not supported." % queue)
 
       total_processing_time = job_count * normal_delay
       if total_processing_time > self._MAX_QUEUE_DELAY:
@@ -159,7 +160,7 @@ class Queue(object):
       next_job = self._last_jobs[queue] + datetime.timedelta(0, queue_delay)
       return next_job <= datetime.datetime.now()
     except KeyError:
-      raise PermanentError, "Priority queue '%s' not supported." % queue
+      raise PermanentError("Priority queue '%s' not supported." % queue)
 
   def _GetNextPriorityQueue(self, job_counts):
     """Returns the name of the next queue to process an element of. This is an
@@ -290,7 +291,7 @@ class Queue(object):
   def _LogStatistics(self):
     """Logs the current statistics, and reset the counters."""
 
-    job_stats = ["%s=%d" % (q, c) for (q, c) in self._job_counts.items()]
+    job_stats = ["%s=%d" % (q, c) for (q, c) in list(self._job_counts.items())]
     logger.info("Queue stats - jobs handled: " + ", ".join(job_stats))
     logger.info("Queue stats - transient errors: " + \
       str(len(self._transient_errors)))
@@ -304,7 +305,7 @@ class Queue(object):
     assert(self._min_delay >= 1)
     last_stats = datetime.datetime.now()
     delta_stats = datetime.timedelta(0, self._STATISTICS_DELAY)
-    while 1:
+    while True:
       self._CheckTransientErrors()
       if datetime.datetime.now() - last_stats > delta_stats:
         self._LogStatistics()

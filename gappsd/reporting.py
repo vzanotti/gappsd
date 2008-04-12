@@ -23,8 +23,9 @@ import datetime
 import google.reporting
 import pytz
 
-import account, job, logger, queue
-from logger import PermanentError, TransientError
+import account, job, queue
+from . import logger
+from .logger import PermanentError, TransientError
 
 class ActivityJob(job.Job):
   """Implements the 'r_activity' job, which aims at updating the database
@@ -76,7 +77,7 @@ class ActivityJob(job.Job):
     if "date" not in report:
       report["date"] = date
     self._sql.Insert("gapps_reporting",
-      dict(filter(lambda (k,v): k in self._SQL_FIELDS, report.items())))
+      dict([k_v for k_v in list(report.items()) if k_v[0] in self._SQL_FIELDS]))
 
   # Job processing.
   def RunDailyReport(self, date, first_date):
@@ -97,7 +98,7 @@ class ActivityJob(job.Job):
         reports.setdefault(report["date"], {}).update(report)
 
     daily_reports = 0
-    for (report_date, report) in reports.items():
+    for (report_date, report) in list(reports.items()):
       if int(report_date) >= first_date:
         self._StoreReport(report_date, report)
         daily_reports += 1
@@ -111,14 +112,14 @@ class ActivityJob(job.Job):
     last_report = None
     daily_reports = 0
 
-    while 1:
+    while True:
       date_list = self._ListDaysToProcess(last_report)
       if not len(date_list):
         break
 
       date = date_list[0]
-      date = max(filter(lambda d: d.year == date.year and d.month == date.month,
-                        date_list))
+      date = max([d for d in date_list \
+                    if d.year == date.year and d.month == date.month])
       daily_reports += self.RunDailyReport(date, date_list[0])
       last_report = date
 
@@ -167,7 +168,7 @@ class AccountsJob(job.Job):
 
     a = account.Account(sql["g_account_name"], sql)
     create_sync_job = False
-    for (key, (account_key, silent_update)) in self._FIELDS.items():
+    for (key, (account_key, silent_update)) in list(self._FIELDS.items()):
       if key in reporting and a.get(account_key) != reporting[key]:
         if silent_update:
           a.set(account_key, reporting[key])
@@ -220,7 +221,7 @@ class AccountsJob(job.Job):
       except KeyError:
         self.SynchronizeReportingAccount(r_account)
 
-    for s_account in sql_accounts.values():
+    for s_account in list(sql_accounts.values()):
       self.SynchronizeSQLAccount(s_account)
 
     self.Update(self.STATUS_SUCCESS)
@@ -255,13 +256,13 @@ class ReportingApiClient(google.reporting.ReportRunner):
         logger.info("Reporting API - Authentication succedeed")
       except google.reporting.ConnectionError, error:
         logger.info("Reporting API - Authentication failed with unknown error")
-        raise TransientError, \
-          "ConnectionError in Reporting API authentication: %s" % error
+        raise TransientError( \
+          "ConnectionError in Reporting API authentication: %s" % error)
       except google.reporting.LoginError, error:
         if str(error) == 'Authentication failure':
           logger.critical("Reporting API - Authentication refused")
-          raise logger.CredentialError, "Bad credential for Reporting API"
-        raise TransientError, "LoginError: %s" % error
+          raise logger.CredentialError("Bad credential for Reporting API")
+        raise TransientError("LoginError: %s" % error)
 
   @staticmethod
   def GetLatestReportDate(now_pst=None):
@@ -289,12 +290,12 @@ class ReportingApiClient(google.reporting.ReportRunner):
                   (report_name, request.date))
       report = self.GetReportData(request)
     except google.reporting.ConnectionError, error:
-      raise TransientError, "ConnectionError: %s" % error
+      raise TransientError("ConnectionError: %s" % error)
     except google.reporting.ReportError, error:
       # Permanent error code requiring admin intervention.
       if error.reason_code in [1001, 1004, 1005, 1007, 1027]:
         logger.error("Reporting API - Request failed\n%s" % error)
-        raise PermanentError, "In reporting: %s" % error
+        raise PermanentError("In reporting: %s" % error)
 
       # Temporary error code meaning "report not found".
       if error.reason_code in [1045, 1059, 1060]:
@@ -303,16 +304,16 @@ class ReportingApiClient(google.reporting.ReportRunner):
       # Temporary error code meaning "retry".
       if error.reason_code in [1000, 1011, 1070]:
         logger.info("Reporting API - Transient report failure\n%s" % error)
-        raise TransientError, "Temporary reporting failure: %s" % error
+        raise TransientError("Temporary reporting failure: %s" % error)
 
       # Authentication failure.
       if error.reason_code == 1006:
         self.token = None
-        raise TransientError, "Authentication token expired."
+        raise TransientError("Authentication token expired.")
 
       # Unknow error, mail the administrators.
       logger.error("Reporting API - Unknown error\n%s" % error)
-      raise TransientError, "Unkown error in reporting: %s" % error
+      raise TransientError("Unkown error in reporting: %s" % error)
 
     return csv.DictReader(report.split("\n"))
 

@@ -27,7 +27,7 @@ def main():
   (options, args) = parser.parse_args()
 
   if options.config_file is None:
-    print "Error: option --config-file is mandatory."
+    print("Error: option --config-file is mandatory.")
     exit(1)
   gappsd.daemon.Daemon(options.config_file, options.verbose or False).Run()
 

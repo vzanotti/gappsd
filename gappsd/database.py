@@ -23,8 +23,8 @@ import MySQLdb
 import MySQLdb.cursors as cursors
 import warnings
 
-import logger
-from logger import PermanentError, TransientError
+from . import logger
+from .logger import PermanentError, TransientError
 
 class SQLTransientError(TransientError):
   """Generic exception for transient errors (eg. connection lost)"""
@@ -69,7 +69,7 @@ class SQL(object):
           host=self._host, user=self._user, passwd=self._pass, db=self._db,
           charset='utf8', use_unicode=False)
       except MySQLdb.Error, message:
-        raise SQLTransientError, "Error: %s" % message
+        raise SQLTransientError("Error: %s" % message)
 
   def Close(self):
     """Closes the connection to the database, if one is opened."""
@@ -96,15 +96,15 @@ class SQL(object):
       results = cursor.execute(query, args)
       data = None if not fetch else cursor.fetchall()
     except MySQLdb.DataError, message:
-      raise SQLPermanentError, "DataError: %s" % message
+      raise SQLPermanentError("DataError: %s" % message)
     except MySQLdb.IntegrityError, message:
-      raise SQLPermanentError, "IntegrityError: %s" % message
+      raise SQLPermanentError("IntegrityError: %s" % message)
     except MySQLdb.ProgrammingError, message:
-      raise SQLPermanentError, "ProgrammingError: %s" % message
+      raise SQLPermanentError("ProgrammingError: %s" % message)
     except MySQLdb.Warning, message:
-      raise SQLPermanentError, "Warning: %s" % message
+      raise SQLPermanentError("Warning: %s" % message)
     except MySQLdb.Error, message:
-      raise SQLTransientError, "Error: %s" % message
+      raise SQLTransientError("Error: %s" % message)
 
     return (results, data)
 
@@ -113,7 +113,7 @@ class SQL(object):
     """Updates the @p table by setting new values for keys contained in @p
     values, and using the @p where dictionary to select entries.
     Cf. __Query for information on raised exceptions."""
-    args = values.values() + where.values();
+    args = list(values.values()) + list(where.values())
     query = "UPDATE %s SET " % table + \
       ", ".join(["%s = %%s" % field for field in values]) + " WHERE " + \
       " AND ".join(["%s = %%s" % field for field in where])
@@ -123,7 +123,7 @@ class SQL(object):
     """Inserts a new record in the @p table, using the @p values dictionary
     as data source.
     Cf. __Query for information on raised exceptions."""
-    args = values.values();
+    args = list(values.values());
     query = "INSERT INTO %s SET " % table + \
       ", ".join(["%s = %%s" % field for field in values])
     return self.Execute(query, args)

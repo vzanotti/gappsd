@@ -102,7 +102,7 @@ if __name__ == '__main__':
   (options, args) = parser.parse_args()
 
   if options.config_file is None:
-    print "Error: options --config-file is mandatory."
+    print("Error: options --config-file is mandatory.")
     exit(1)
 
   cleaner = QueueCleaner(options.config_file)

@@ -65,7 +65,7 @@ class JobRegistry(object):
     try:
       return self._job_types[job_type](*args)
     except KeyError:
-      raise JobTypeError, "Job '%s' is undefined." % job_type
+      raise JobTypeError("Job '%s' is undefined." % job_type)
 
 
 class Job(object):
@@ -122,11 +122,11 @@ class Job(object):
         else:
           self._data[key] = self._DATA_FIELDS[key](job_dict[key])
     except KeyError:
-      raise JobContentError, \
-        "No value for field '%s' was found." % sys.exc_info()[1]
+      raise JobContentError( \
+        "No value for field '%s' was found." % sys.exc_info()[1])
     except ValueError:
-      raise JobContentError, \
-        "Invalid value of JSON field 'j_parameters' (%s)." % sys.exc_info()[1]
+      raise JobContentError( \
+        "Invalid value of JSON field 'j_parameters' (%s)." % sys.exc_info()[1])
 
     # Alias for easier access to job parameters.
     self._parameters = self._data["j_parameters"]
@@ -186,8 +186,8 @@ class Job(object):
       # Status "idle" is supposed to be set by the queue feeder (ie. the
       # website), while "active" is only supposed to be updated by the
       # queue manager.
-      raise JobActionError, \
-        "A job status cannot be set to 'idle' or 'active' mode."
+      raise JobActionError( \
+        "A job status cannot be set to 'idle' or 'active' mode.")
 
     if status == self.STATUS_SOFTFAIL:
       # On softfail, the r_softfail_* are updated. When the softfail count
@@ -214,14 +214,14 @@ class Job(object):
 
     if not len(values):
       # Status was set to an unknown value, fail.
-      raise JobActionError, "Unknown status %s" % status
+      raise JobActionError("Unknown status %s" % status)
 
     self._data.update(values)
     self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
 
   # "Abstract" implementation of the Run method.
   def Run(self):
-    raise JobActionError, "You can't call Run() on a base Job object."
+    raise JobActionError("You can't call Run() on a base Job object.")
 
 
 # Job registry used by external modules to register new job types.

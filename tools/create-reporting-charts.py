@@ -39,7 +39,7 @@ import collections
 import datetime
 import gappsd.config, gappsd.database
 import optparse
-import pygooglechart
+from . import pygooglechart
 
 
 class ChartCreator(object):
@@ -296,7 +296,7 @@ if __name__ == '__main__':
   (options, args) = parser.parse_args()
 
   if options.config_file is None or options.destination is None:
-    print "Error: options --config-file and --destination are mandatory."
+    print("Error: options --config-file and --destination are mandatory.")
     exit(1)
 
   chart_creator = ChartCreator(options.config_file)

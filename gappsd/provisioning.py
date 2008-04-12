@@ -23,8 +23,9 @@ import gdata.apps.service
 import re
 import traceback
 
-import account, job, logger, queue
-from logger import PermanentError, TransientError
+import account, job, queue
+from . import logger
+from .logger import PermanentError, TransientError
 
 class UserJob(job.Job):
   """Base class for User account manipulation jobs. It provides basic parameter
@@ -54,14 +55,14 @@ class UserJob(job.Job):
     """Checks that the JSON-encoded parameters of the job are valid."""
 
     if not "username" in self._parameters:
-      raise job.JobContentError, "Field 'username' missing."
+      raise job.JobContentError("Field 'username' missing.")
     for field in self._FIELDS_REGEXP:
       if field in self._parameters:
-        if not isinstance(self._parameters[field], (str, unicode)):
+        if not isinstance(self._parameters[field], basestring):
           self._parameters[field] = unicode(self._parameters[field])
         if not self._FIELDS_REGEXP[field].match(unicode(self._parameters[field])):
-          raise job.JobContentError, "Field '%s' did not match regexp '%s'." % \
-            (field, self._FIELDS_REGEXP[field])
+          raise job.JobContentError("Field '%s' did not match regexp '%s'." % \
+            (field, self._FIELDS_REGEXP[field]))
 
 
 class UserCreateJob(UserJob):
@@ -78,7 +79,7 @@ class UserCreateJob(UserJob):
     UserJob._CheckParameters(self)
     for field in self._MANDATORY_FIELDS:
       if field not in self._parameters:
-        raise job.JobContentError, "Field '%s' missing." % field
+        raise job.JobContentError("Field '%s' missing." % field)
 
   def Run(self):
     """Creates a new Google account (if the @p username did not exist), and
@@ -87,8 +88,8 @@ class UserCreateJob(UserJob):
     # Checks that no account exists with this name.
     user_entry = self._api_client.TryRetrieveUser(self._parameters["username"])
     if user_entry:
-      raise PermanentError, \
-        "An account for user '%s' already exists." % self._parameters["username"]
+      raise PermanentError("An account for user '%s' already exists." % \
+        self._parameters["username"])
 
     # Creates the account on Google side.
     if "suspended" in self._parameters:
@@ -131,15 +132,14 @@ class UserDeleteJob(UserJob):
     # Checks that the user entry actually exists.
     user = self._api_client.TryRetrieveUser(self._parameters["username"])
     if not user:
-      raise PermanentError, \
-        "User '%s' did not exist. Deletion failed." % \
-        self._parameters["username"]
+      raise PermanentError("User '%s' did not exist. Deletion failed." % \
+        self._parameters["username"])
 
     # Checks that (in admin mode) the job is not requesting the deletion of
     # an administrator.
     if user.login.admin == 'false':
-      raise PermanentError, "Administrators cannot be deleted directly, you" \
-        " must remove their admin status first."
+      raise PermanentError("Administrators cannot be deleted directly, you" \
+        " must remove their admin status first.")
 
     # Removes the account from the databases.
     self._api_client.DeleteUser(self._parameters["username"])
@@ -208,9 +208,9 @@ class UserSynchronizeJob(UserJob):
     Google's UserEntry object."""
 
     if account.get("g_account_name") != user_entry.login.user_name:
-      raise PermanentError, \
+      raise PermanentError( \
         "Cannot synchronize accounts with different usernanames (%s - %s)" & \
-        (account.get("g_account_name"), user_entry.login.user_name)
+        (account.get("g_account_name"), user_entry.login.user_name))
 
     # Updates silently non-critical fields.
     account.set('g_first_name', user_entry.name.given_name)
@@ -265,9 +265,9 @@ class UserUpdateJob(UserJob):
     # Retrieves the UserEntry and checks the existence of the user.
     user = self._api_client.TryRetrieveUser(self._parameters["username"])
     if not user:
-      raise PermanentError, \
+      raise PermanentError( \
         "User '%s' do not exist, cannot update its account." % \
-        self._parameters["username"]
+        self._parameters["username"])
 
     # In non-privileged mode, refuses to update the password, suspension status,
     # or admin status of an administrator.
@@ -340,22 +340,22 @@ class ProvisioningApiClient(object):
       logger.info("Provisioning API - Authentication succedeed")
     except gdata.service.BadAuthentication, error:
       logger.critical("Provisioning API - Authentication refused")
-      raise logger.CredentialError, "Bad credential for Provisioning API"
+      raise logger.CredentialError("Bad credential for Provisioning API")
     except gdata.service.CaptchaRequired, error:
       logger.critical( \
         "Provisioning API - Captcha required for authentication\n" + \
         "Please visit:\n  %s\n" % self._service.captcha_url + \
         "and use %s's identity to solve the captcha.\n" % self._admin_email + \
         "\nDo not forget to restart gappsd !")
-      raise logger.CredentialError, "Captcha required for Provisioning API"
+      raise logger.CredentialError("Captcha required for Provisioning API")
     except gdata.service.Error, error:
       logger.info("Provisioning API - Authentication failed with 403 error")
-      raise TransientError, \
-        "403 error while authenticating for Provisioning API"
+      raise TransientError( \
+        "403 error while authenticating for Provisioning API")
     except Exception, error:
       logger.info("Provisioning API - Authentication failed with unknown error")
-      raise TransientError, \
-        "Other error for Provisioning API authentication:\n%s" % error
+      raise TransientError( \
+        "Other error for Provisioning API authentication:\n%s" % error)
 
   def _ProcessApiRequest(self, method, pargs, nargs, acceptable_error_codes=None):
     """Common API Request processor: calls a function of the underlying service,
@@ -380,28 +380,27 @@ class ProvisioningApiClient(object):
         if error.args[0]["status"] == 401:
           logger.info("Provisioning API - got 401 http error code")
           self._RenewService()
-          raise TransientError, "Provisioning API - Invalid token"
+          raise TransientError("Provisioning API - Invalid token")
         else:
           logger.info("Provisioning API - Unknown error: %s" % error)
-          raise TransientError, "Provisioning API - Unknown error: %s" % error
+          raise TransientError("Provisioning API - Unknown error: %s" % error)
 
       # Other errors are permanent and related to the request itself.
       if not error.error_code in acceptable_error_codes:
         logger.info("Provisioning API - Permanent error %d" % error.error_code)
-        raise PermanentError, "Provisioning API - Error %d (%s)" % \
-          (error.error_code, error.reason)
+        raise PermanentError("Provisioning API - Error %d (%s)" % \
+          (error.error_code, error.reason))
       else:
         result = None
     except gdata.service.RequestError, error:
       logger.info("Provisioning API - Request error %d" % \
         error.args[0]["status"])
-      raise TransientError, "Provisioning API - Request error %d (%s)" % \
-        (error.args[0]["status"], error.args[0]["body"])
+      raise TransientError("Provisioning API - Request error %d (%s)" % \
+        (error.args[0]["status"], error.args[0]["body"]))
     except Exception, error:
       logger.info("Provisioning API - Request failed with unknown error")
-      raise TransientError, \
-        "Other error for Provisioning API request:\n" + \
-        traceback.format_exc(error)
+      raise TransientError("Other error for Provisioning API request:\n" + \
+        traceback.format_exc(error))
 
     # Temporary workaround for incorrect UTF-8 processing in gdata-python-client.
     # Cf. http://groups.google.com/group/google-apps-apis/browse_thread/thread/dfc460bb4ad387fb/74278fcf03db27f8?hl=en#74278fcf03db27f8

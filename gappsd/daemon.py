@@ -22,9 +22,10 @@ import pprint
 import time
 import traceback
 
-import config, database, logger, queue
+import config, database, queue
 import job, provisioning, reporting
-from logger import CredentialError, TransientError
+from . import logger
+from .logger import CredentialError, TransientError
 
 class Daemon(object):
   """The GApps daemon runner: initializes the database, configuration and
@@ -46,7 +47,7 @@ class Daemon(object):
     """Runs the GApps daemon in backup mode: every hour, it sends a reminder
     email to the admin, waiting for a manual restart."""
 
-    while 1:
+    while True:
       time.sleep(self._BACKUP_EMAIL_INTERVAL)
       logger.critical(
         "Running in backup mode -- waiting for admin intervention !")
@@ -67,7 +68,7 @@ class Daemon(object):
     is catched (ie a Credential, several TransientError, or any other
     unknown exception), it switches to backup mode."""
 
-    while 1:
+    while True:
       try:
         q = queue.Queue(self._config, self._sql)
         q.Run()

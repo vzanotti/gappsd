@@ -93,7 +93,7 @@ class Config(object):
     MissingValueError on error."""
     for key in self._data:
       if self._data[key] is None:
-        raise MissingValueError, key
+        raise MissingValueError(key)
 
   def get_string(self, key):
     """ Returns the string config value for @p key."""
