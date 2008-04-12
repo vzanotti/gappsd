@@ -22,9 +22,11 @@ Usage:
   create-reporting-charts.py \
     --config-file /path/to/config/file \
     --destination /path/to/produced/charts
+
 It currently results in two files:
   apps-activity-monthly.png
   apps-activity-yearly.png
+The "apps-" prefix can be changed using the --prefix parameter.
 
 TODO(vzanotti): Add vertical bars to indicate weeks.
 """
@@ -271,20 +273,26 @@ class ChartCreator(object):
 
     return chart
 
-  def StoreChartsTo(self, destination):
+  def StoreChartsTo(self, destination, prefix=None):
     """Retrieves the two charts, and stores them to the destination directory"""
 
+    if not prefix:
+      prefix = "apps-"
+
     chart_month = self.GetUserActivityChart(31)
-    chart_month.download(os.path.join(destination, 'apps-activity-monthly.png'))
+    chart_month.download(os.path.join(destination,
+                                      '%sactivity-monthly.png' % prefix))
 
     chart_year = self.GetUserActivityChart(365)
-    chart_year.download(os.path.join(destination, 'apps-activity-yearly.png'))
+    chart_year.download(os.path.join(destination,
+                                     '%sactivity-yearly.png' % prefix))
 
 
 if __name__ == '__main__':
   parser = optparse.OptionParser()
   parser.add_option("-c", "--config-file", action="store", dest="config_file")
   parser.add_option("-d", "--destination", action="store", dest="destination")
+  parser.add_option("-p", "--prefix", action="store", dest="prefix")
   (options, args) = parser.parse_args()
 
   if options.config_file is None or options.destination is None:
@@ -292,4 +300,4 @@ if __name__ == '__main__':
     exit(1)
 
   chart_creator = ChartCreator(options.config_file)
-  chart_creator.StoreChartsTo(options.destination)
+  chart_creator.StoreChartsTo(options.destination, options.prefix)
