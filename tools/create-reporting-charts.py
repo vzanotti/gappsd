@@ -276,7 +276,7 @@ class ChartCreator(object):
   def StoreChartsTo(self, destination, prefix=None):
     """Retrieves the two charts, and stores them to the destination directory"""
 
-    if not prefix:
+    if prefix is None:
       prefix = "apps-"
 
     chart_month = self.GetUserActivityChart(31)
