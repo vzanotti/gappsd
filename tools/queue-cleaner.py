@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2.5
 #
 # Copyright (C) 2008 Polytechnique.org
 # Author: Vincent Zanotti (vincent.zanotti@polytechnique.org)
@@ -35,14 +35,14 @@ class QueueCleaner(object):
   # Delay before removing a finished job from the queue, in days.
   _FAILED_JOBS_DELAY = 7
   _SUCCESSFUL_JOBS_DELAY = 1
-  
+
   def __init__(self, config_file):
     self._config = gappsd.config.Config(config_file)
     self._sql = gappsd.database.SQL(self._config)
 
   def CleanQueue(self):
     """Executes queue clean-up / reporting jobs."""
-    
+
     self.RemoveFailedJobs()
     self.RemoveSuccessfulJobs()
     if not self.HasReportingJobs():
@@ -50,12 +50,12 @@ class QueueCleaner(object):
 
   def RemoveFailedJobs(self):
     """Removes old failed unclaimed jobs."""
-    
+
     self._RemoveJobs('hardfail', self._FAILED_JOBS_DELAY)
-  
+
   def RemoveSuccessfulJobs(self):
     """Removes old successful unclaimed jobs."""
-    
+
     self._RemoveJobs('success', self._SUCCESSFUL_JOBS_DELAY)
 
   def _RemoveJobs(self, status, delay):
@@ -68,16 +68,16 @@ class QueueCleaner(object):
   def HasReportingJobs(self):
     """Indicates whether active reporting update jobs are present or not in the
     job queue."""
-    
+
     count = self._sql.Query( \
         """SELECT COUNT(*) AS count
              FROM gapps_queue
             WHERE j_type IN ('r_accounts', 'r_activity') AND p_status = 'idle'""")
     return count[0]["count"]
-    
+
   def AddReportingJobs(self):
     """Adds reporting update jobs to the queue."""
-    
+
     self._sql.Execute( \
         """INSERT INTO gapps_queue
                    SET p_entry_date = NOW(),
@@ -104,6 +104,6 @@ if __name__ == '__main__':
   if options.config_file is None:
     print "Error: options --config-file is mandatory."
     exit(1)
-  
+
   cleaner = QueueCleaner(options.config_file)
   cleaner.CleanQueue()

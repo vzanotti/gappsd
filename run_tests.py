@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2.5
 #
 # Copyright (C) 2008 Polytechnique.org
 # Author: Vincent Zanotti (vincent.zanotti@polytechnique.org)
