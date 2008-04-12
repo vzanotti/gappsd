@@ -1,9 +1,9 @@
 WD=/home/googleapps
 
 # Cleans up the job queue, and schedules reporting updates.
-42 0 * * *	googleapps	cd $WD; ./tools/queue-cleaner.py --config-file $WD/gapps.conf
+42 0 * * *	googleapps	cd $WD; ./tools/queue-cleaner.py --config-file gapps.conf
 
 # Regenerates activity graphs.
-12 1 * * *	googleapps	cd $WD; ./tools/create-reporting-charts.py --config-file $WD/gapps.conf --destination /tmp
+12 1 * * *	googleapps	cd $WD; ./tools/create-reporting-charts.py --config-file gapps.conf --destination /tmp
 
 # vim:set noet syntax=crontab ts=8 sw=8 sts=8:
