@@ -39,7 +39,7 @@ import collections
 import datetime
 import gappsd.config, gappsd.database
 import optparse
-from . import pygooglechart
+import pygooglechart
 
 
 class ChartCreator(object):
