@@ -142,8 +142,24 @@ class TestQueue(unittest.TestCase):
     self.assertEquals(j.update_status, job.Job.STATUS_HARDFAIL)
 
   def testProcessNextJob(self):
-    # TODO(zanotti): Add unittests for this metod.
-    pass
+    self.job_requested = {}
+    self.job_processed = []
+    def mockGetJobCounts():
+      return {"immediate": 1, "normal": 0, "offline": 1}
+    def mockGetJobFromQueue(queue):
+      self.job_requested[queue] = True
+      return queue
+    def mockProcessJob(job):
+      self.job_processed.append(job)
+
+    self.queue._GetJobCounts = mockGetJobCounts
+    self.queue._GetJobFromQueue = mockGetJobFromQueue
+    self.queue._ProcessJob = mockProcessJob
+
+    self.queue._ProcessNextJob()
+    self.assertEquals(self.queue._job_counts["immediate"], 1)
+    self.assertEquals(self.job_processed[0], "immediate")
+    self.assertEquals(self.job_processed[1], "offline")
 
   def testAddTransientError(self):
     try:
@@ -206,10 +222,6 @@ class TestQueue(unittest.TestCase):
     })
     self.assertRaises(logger.CredentialError, self.queue._CheckTransientErrors)
 
-  def testLogStatictics(self):
-    # TODO(zanotti): Add unittests for this metod.
-    pass
-
   def testRun(self):
-    # TODO(zanotti): Add unittests for this metod.
+    # TODO(vzanotti): Add unittests for this metod.
     pass
