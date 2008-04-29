@@ -19,3 +19,20 @@
 
 import optparse
 import gappsd.cli
+
+def main():
+  parser = optparse.OptionParser()
+  parser.add_option("-c", "--config-file", action="store", dest="config_file")
+  parser.add_option("-a", "--admin-email", action="store", dest="admin_email")
+  (options, args) = parser.parse_args()
+
+  if options.admin_email is None:
+    print("Error: option --admin-email is mandatory.")
+    exit(1)
+  if options.config_file is None:
+    print("Error: option --config-file is mandatory.")
+    exit(1)
+  gappsd.cli.Cli(options.config_file, options.admin_email).Run()
+
+if __name__ == '__main__':
+  main()
