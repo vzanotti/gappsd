@@ -140,6 +140,9 @@ class Job(object):
   def status(self):
     return (self._data['p_status'], self._data['r_softfail_count'])
 
+  def id(self):
+    return self._data['q_id']
+
   # Status update methods.
   @staticmethod
   def MarkFailed(sql, queue_id, message):

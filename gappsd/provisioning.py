@@ -307,6 +307,8 @@ class ProvisioningApiClient(object):
   Example usage:
     provisioning = ProvisioningApiClient(config)
     provisioning.CreateUser(Cf. google/gdata/apps/service.py for usage)
+
+  TODO(vzanotti): Implement token logout methods.
   """
 
   def __init__(self, config, apps_service=None):

@@ -69,6 +69,12 @@ class Queue(object):
     "p_admin_request IS FALSE AND " \
     "(p_start_date IS NULL OR p_status = 'idle' OR " \
     "DATE_ADD(p_start_date, INTERVAL 90 SECOND) <= NOW())"
+  _ACTIVE_JOBS_WHERE_CLAUSE_ADMIN = \
+    "p_status IN ('idle', 'active', 'softfail') AND " \
+    "p_notbefore_date <= NOW() AND " \
+    "p_admin_request IS TRUE AND " \
+    "(p_start_date IS NULL OR p_status = 'idle' OR " \
+    "DATE_ADD(p_start_date, INTERVAL 90 SECOND) <= NOW())"
   _JOB_SELECT_CLAUSE = \
     "q_id, p_status, UNIX_TIMESTAMP(p_entry_date) AS p_entry_date, " \
     "UNIX_TIMESTAMP(p_start_date) AS p_start_date, r_softfail_count, " \
@@ -188,14 +194,15 @@ class Queue(object):
     the status field of the job."""
 
     sql_query = "SELECT %s FROM gapps_queue WHERE %s AND p_priority = %%s " \
-      "ORDER BY q_id LIMIT 1" % (self._JOB_SELECT_CLAUSE, self._ACTIVE_JOBS_WHERE_CLAUSE)
+      "ORDER BY q_id LIMIT 1" % (self._JOB_SELECT_CLAUSE,
+                                 self._ACTIVE_JOBS_WHERE_CLAUSE)
     result = self._sql.Query(sql_query, (queue,))
     if not len(result):
       return None
 
     try:
       j = job.job_registry.Instantiate(result[0]["j_type"],
-                                         self._config, self._sql, result[0])
+                                       self._config, self._sql, result[0])
       j.MarkActive()
     except job.JobError, message:
       j = None

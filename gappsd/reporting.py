@@ -247,6 +247,8 @@ class ReportingApiClient(google.reporting.ReportRunner):
 
   def _RenewToken(self):
     """Checks that the token isn't expired yet, and renew it if it is."""
+    # TODO(vzanotti): implement LogOut methods.
+
     if self.token is None or self.token_expiration < datetime.datetime.now():
       try:
         logger.info("Reporting API - Requesting authentication token")
