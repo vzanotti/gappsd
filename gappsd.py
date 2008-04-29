@@ -15,7 +15,33 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""TODO"""
+"""Google Apps API daemon.
+
+Acts as an interface between the Google Apps API (more specifically the
+provisionning and reporting APIs), and a random website, by the mean of shared
+SQL tables.
+
+More specifically, gappsd maintains a local SQL mirror of Google Apps user
+management data (statistical informations as well as per user details), and
+executes "jobs" submitted by the website. Those jobs include user accounts
+maintenance (creation, update, deletion), and statistics update requests.
+
+Please see tools/queue-cleaner.py for a job queue maintenance tool (which also
+automatizes the statistics update).
+
+
+Two of the main features of gappsd are reliability and security: it makes the
+most to ensure that jobs are correctly executed, even in case of Google-side
+transient failures. The security is provided in two ways: first, gappsd can be
+executed by a dedicated UNIX user (if correctly configured, it prevents the
+website from acessing Google Apps credentials stored in gappsd configuration);
+second, it refuses to execute jobs that would be dangerous for the Google Apps
+domaine (for example, user deletion jobs, and admin accounts password update
+jobs can't executed by the gappsd (see gapps-cli.py for details on how to
+execute them).
+
+Usage: gappsd.py --config-file <path/to/config.file>
+"""
 
 import optparse
 import gappsd.daemon
