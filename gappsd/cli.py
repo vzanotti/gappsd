@@ -15,15 +15,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""TODO"""
+"""Command line tool for the GoogleApps Daemon project.
+
+Provides a way to execute jobs that the normal gappsd will refuse to execute
+(mainly jobs which involve changes to administrators accounts, or privileged
+actions such as account deletion)."""
 
 # TODO(vzanotti): LogOut on authentication tokens.
 
 import getpass
-import pprint
-import traceback
-
-import config, database, queue
+import config, database, logger, queue
 import job, provisioning, reporting
 
 class CliQueue(object):
@@ -33,6 +34,7 @@ class CliQueue(object):
     self._config = config
     self._sql = sql
     self._jobs = {}
+    self._queue = queue.Queue(config, sql)
 
   def Jobs(self):
     return self._jobs
@@ -50,12 +52,18 @@ class CliQueue(object):
       try:
         j = job.job_registry.Instantiate(row["j_type"],
                                         self._config, self._sql, row)
-        self._jobs[j.id()] = j
+        self._jobs[str(j.id())] = j
       except job.JobError, message:
         job.Job.MarkFailed(self._sql, result[0]["q_id"],
                           "Job instantiation error: %s" % (message,))
         logger.info("Failed to instantiate job %d: %s" % \
           (result[0]["q_id"], message))
+
+  def ProcessJob(self, job_number):
+    """TODO"""
+
+    job = self._jobs[job_number]
+    self._queue._ProcessJob(job)
 
 class Cli(object):
   """TODO"""
@@ -69,8 +77,10 @@ class Cli(object):
     self._config.set('gapps.admin-api-username', username)
     self._config.set('gapps.admin-api-password',
                      getpass.getpass("%s's password: " % admin_email))
+    self._config.set('gappsd.admin-only-jobs', True)
     self._sql = database.SQL(self._config)
     self._queue = CliQueue(self._config, self._sql)
+    logger.InitializeLogging(None, True)
 
   def ListJobs(self, jobs):
     if not len(jobs):
@@ -78,12 +88,18 @@ class Cli(object):
       return False
 
     print("Please choose a job to process: ")
-    for (id, j) in jobs.items():
-      print("(%d) %s" % (id, j))
+    for (job_id, job) in jobs.items():
+      print("(%s) %s" % (job_id, job))
     return True
 
-  def PrintJob(self, job):
-    pass
+  def PrintJob(self, jobs, job_number):
+    if not job_number in jobs:
+      print("Unknown job !\n")
+      return False
+
+    job = jobs[job_number]
+    print job.__longstr__()
+    return True
 
   def Run(self):
     """TODO"""
@@ -95,9 +111,20 @@ class Cli(object):
       if not len(jobs):
         break
 
-      # getkey
-      # print job
-      # request confirmation
-      # execute job
+      # Asks for job # to process.
+      job = raw_input("Job ? ")
+      if not job:
+        break
+      if not self.PrintJob(jobs, job):
+        continue
 
-      return
+      # Confirms the admin's intention to execute the job.
+      confirm = raw_input("Confirm execution of this job ? (n/y) ")
+      if len(confirm) == 0 or not confirm[0] == 'y':
+        print("Aborting ...")
+        continue
+
+      # Processes the job.
+      print("")
+      self._queue.ProcessJob(job)
+      print("")

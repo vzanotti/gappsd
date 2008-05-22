@@ -15,7 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""TODO"""
+"""Command line tool for the GoogleApps Daemon project.
+
+Provides a way to execute jobs that the normal gappsd will refuse to execute
+(mainly jobs which involve changes to administrators accounts, or privileged
+actions such as account deletion).
+
+Usage:
+  gapps-cli.py -c <configfile> -a <admin_email>
+"""
 
 import optparse
 import gappsd.cli

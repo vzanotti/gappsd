@@ -20,8 +20,11 @@ a JobRegistry to register new implementations of the Job class.
 """
 
 import datetime
+import pprint
 import simplejson
 import sys
+
+import logger
 
 class JobError(Exception):
   """The mother exception of all job-related exceptions."""
@@ -137,6 +140,11 @@ class Job(object):
       (self._data['j_type'], self._data['q_id'], self._data['p_entry_date'],
        self._data['p_status'], self._data['r_softfail_count'])
 
+  def __longstr__(self):
+    return "Job '%s', queue id %d, created on %s:\n %s" % \
+      (self._data['j_type'], self._data['q_id'], self._data['p_entry_date'],
+       pprint.pformat(self._data['j_parameters'], indent=2))
+
   def status(self):
     return (self._data['p_status'], self._data['r_softfail_count'])
 
@@ -167,6 +175,7 @@ class Job(object):
     }
     self._data.update(values)
     self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
+    logger.warning("Did set admin flag on job <%s>" % (self.__str__(),))
 
   def MarkActive(self):
     """Updates the job to the 'currently being processed' status."""
