@@ -71,7 +71,6 @@ class Queue(object):
     "DATE_ADD(p_start_date, INTERVAL 90 SECOND) <= NOW())"
   _ACTIVE_JOBS_WHERE_CLAUSE_ADMIN = \
     "p_status IN ('idle', 'active', 'softfail') AND " \
-    "p_notbefore_date <= NOW() AND " \
     "p_admin_request IS TRUE AND " \
     "(p_start_date IS NULL OR p_status = 'idle' OR " \
     "DATE_ADD(p_start_date, INTERVAL 90 SECOND) <= NOW())"

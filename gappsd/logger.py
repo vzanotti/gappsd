@@ -105,7 +105,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
 
     s = self._MAIL_TEMPLATE % record.__dict__
     if record.exc_info:
-      record.exc_text = self.formatException(record.exc_info)
+      record.exc_text = self.formatter.formatException(record.exc_info)
       if record.exc_text:
         s = s + record.exc_text if s[-1] == '\n' else record.exc_text
     return s
@@ -124,7 +124,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
       self._subjects[subject] = datetime.datetime.now()
       logging.handlers.SMTPHandler.emit(self, record)
 
-def InitializeLogging(config, alsologtostderr=False):
+def InitializeLogging(config=None, alsologtostderr=False):
   """Initializes the logging for the project, using the global configuration."""
   root_handler = logging.root
   root_handler.setLevel(logging.INFO)
@@ -137,7 +137,7 @@ def InitializeLogging(config, alsologtostderr=False):
     stderr.setFormatter(formatter)
     root_handler.addHandler(stderr)
 
-  if len(config.get_string("gappsd.logfile-name")):
+  if config and len(config.get_string("gappsd.logfile-name")):
     logfile = logging.handlers.TimedRotatingFileHandler(
       config.get_string("gappsd.logfile-name"),
       "midnight",
@@ -147,7 +147,7 @@ def InitializeLogging(config, alsologtostderr=False):
     logfile.setFormatter(formatter)
     root_handler.addHandler(logfile)
 
-  if config.get_int("gappsd.logmail"):
+  if config and config.get_int("gappsd.logmail"):
     if config.get_int("gappsd.logmail-domain-in-subject"):
       domain = config.get_string("gapps.domain")
     else:
