@@ -132,42 +132,57 @@ class TestUserJob(unittest.TestCase):
                       self.config, self.sql, self._JOB_DATA)
 
 class TestUserCreateJob(unittest.TestCase):
-  def setUp(self):
-    global provisioning_api_client
-    self.service = MockGDataService()
-    provisioning_api_client = provisioning.ProvisioningApiClient(
-      testing.config.MockConfig,
-      self.service)
+  _JOB_DATA = {
+    "q_id": 42, "p_status": "active", "p_entry_date": 1200043549,
+    "p_start_date": 1200043559, "j_type": "r_activity",
+    "r_softfail_count": 0, "r_softfail_date": 1200043259,
+    "j_parameters": '{"username":"foo.bar","first_name":"foo","last_name":"bar","password":"0123456789abcdef0123456789abcdef01234567"}',
+  }
 
-  # TODO
+  def setUp(self):
+    self.config = testing.config.MockConfig()
+    self.service = MockGDataService()
+    self.sql = testing.database.MockSQL()
+    provisioning.provisioning_api_client = \
+      provisioning.ProvisioningApiClient(self.config, self.service)
+
+  def testCreateExistingAccount(self):
+    self.service.retrieve_user_answer = True
+    j = provisioning.UserCreateJob(self.config, self.sql, self._JOB_DATA)
+    self.assertRaises(logger.PermanentError, j.Run)
+    self.assertEquals(self.service.retrieve_user_parameters, "foo.bar")
+
+  def testCreateAccount(self):
+    # TODO
+    pass
 
 class TestUserDeleteJob(unittest.TestCase):
   def setUp(self):
-    global provisioning_api_client
+    self.config = testing.config.MockConfig()
     self.service = MockGDataService()
-    provisioning_api_client = provisioning.ProvisioningApiClient(
-      testing.config.MockConfig,
-      self.service)
+    self.sql = testing.database.MockSQL()
+    provisioning.provisioning_api_client = \
+      provisioning.ProvisioningApiClient(self.config, self.service)
 
   # TODO
 
 class TestUserSynchronizeJob(unittest.TestCase):
   def setUp(self):
-    global provisioning_api_client
+    self.config = testing.config.MockConfig()
     self.service = MockGDataService()
-    provisioning_api_client = provisioning.ProvisioningApiClient(
-      testing.config.MockConfig,
-      self.service)
+    self.sql = testing.database.MockSQL()
+    provisioning.provisioning_api_client = \
+      provisioning.ProvisioningApiClient(self.config, self.service)
 
   # TODO
 
 class TestUserUpdateJob(unittest.TestCase):
   def setUp(self):
-    global provisioning_api_client
+    self.config = testing.config.MockConfig()
     self.service = MockGDataService()
-    provisioning_api_client = provisioning.ProvisioningApiClient(
-      testing.config.MockConfig,
-      self.service)
+    self.sql = testing.database.MockSQL()
+    provisioning.provisioning_api_client = \
+      provisioning.ProvisioningApiClient(self.config, self.service)
 
   # TODO
 
