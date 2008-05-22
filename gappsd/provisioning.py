@@ -33,8 +33,8 @@ class UserJob(job.Job):
 
   _FIELDS_REGEXP = {
     "username": re.compile(r"^[a-z0-9._-]+", re.I),
-    "first_name": re.compile(r"^[\w /.-]{1,40}$", re.I | re.UNICODE),
-    "last_name": re.compile(r"^[\w /.-]{1,40}$", re.I | re.UNICODE),
+    "first_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
+    "last_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
     "password": re.compile(r"^[a-f0-9]{40}$", re.I),
     "suspended": re.compile(r"^(true|false)$", re.I),
   }
@@ -135,9 +135,8 @@ class UserDeleteJob(UserJob):
       raise PermanentError("User '%s' did not exist. Deletion failed." % \
         self._parameters["username"])
 
-    # Checks that (in admin mode) the job is not requesting the deletion of
-    # an administrator.
-    if user.login.admin == 'false':
+    # Checks that the job is not requesting the deletion of an administrator.
+    if user.login.admin != 'false':
       raise PermanentError("Administrators cannot be deleted directly, you" \
         " must remove their admin status first.")
 
