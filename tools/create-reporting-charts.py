@@ -23,9 +23,11 @@ Usage:
     --config-file /path/to/config/file \
     --destination /path/to/produced/charts
 
-It currently results in two files:
+It currently results in four files:
   apps-activity-monthly.png
   apps-activity-yearly.png
+  apps-usage-monthly.png
+  apps-usage-yearly.png
 The "apps-" prefix can be changed using the --prefix parameter.
 
 TODO(vzanotti): Add vertical bars to indicate weeks.
@@ -38,6 +40,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import collections
 import datetime
 import gappsd.config, gappsd.database
+import math
 import optparse
 import pygooglechart
 
@@ -136,6 +139,46 @@ class ChartCreator(object):
       chart.add_fill_range(fill_color, index, index - 1)
     return index
 
+  def GetHumanReadableBound(self, value, binary):
+    """Returns an human readable value for the upper bound of a range (eg. a
+    [0:4269] range would get a 5000 value, which can be reduced then to 5k."""
+    
+    increment = 1024 if binary else 10
+    exponent = int(math.log(value) / math.log(increment))
+    upper_bound = math.pow(increment, exponent)
+    value /= float(upper_bound)
+    
+    while binary and value > 16:
+      value /= float(16)
+      upper_bound *= 16
+      
+    if value <= 2:
+      upper_bound *= 2
+    elif value <= 4:
+      upper_bound *= 4
+    elif value <= 6:
+      upper_bound *= 6
+    elif value <= 8:
+      upper_bound *= 8
+    elif value <= 10:
+      upper_bound *= 10
+    else:
+      upper_bound *= 16
+    return upper_bound
+
+  def GetHumanReadableLabel(self, value, binary):
+    """Returns an human readable form of the @p label (using binary format when
+    required"""
+    
+    increment = 1024 if binary else 1000
+    exponent = int(math.log(value) / math.log(increment))
+    divider = math
+    if exponent == 0:
+      return str(value)
+    else:
+      return "%.1f%s" % (value / math.pow(increment, exponent),
+                         "KMGTPE"[exponent - 1])
+
   def SetChartXAxisLabels(self, chart, day_list):
     """Sets the proper date X-Axis labels for the @p chart, using date based on
     the @p day_list. Tries to add important dates (first day of month/week)."""
@@ -165,32 +208,16 @@ class ChartCreator(object):
     axis_index = chart.set_axis_labels(pygooglechart.Axis.BOTTOM, text_labels)
     chart.set_axis_positions(axis_index, positions)
 
-  def SetChartYAxisLabels(self, chart, max_value):
+  def SetChartYAxisLabels(self, chart, max_value, binary):
     """Sets the appropriate Y-Axis labels, and returns the real maximum value.
     """
 
-    # Finds a 'human-readable' maximum value for Y Axis.
-    real_max_value = 1
-    while max_value > 10:
-      real_max_value *= 10
-      max_value /= float(10)
-
-    if max_value <= 2:
-      real_max_value *= 2
-    elif max_value <= 4:
-      real_max_value *= 4
-    elif max_value <= 6:
-      real_max_value *= 6
-    elif max_value <= 8:
-      real_max_value *= 8
-    else:
-      real_max_value *= 10
-
-    # Updates the chart.
     positions = [25, 50, 75, 100]
+    real_max_value = self.GetHumanReadableBound(max_value, binary)
     axis_index = chart.set_axis_labels(
       pygooglechart.Axis.LEFT,
-      [str(int(real_max_value * pos / 100.0)) for pos in positions])
+      [self.GetHumanReadableLabel(int(real_max_value * pos / 100.0), binary)
+        for pos in positions])
     chart.set_axis_positions(axis_index, positions)
 
     return real_max_value
@@ -222,7 +249,7 @@ class ChartCreator(object):
     # Chart axis and max value preparation.
     max_value = \
       max([data[date]["num_accounts"] for date in day_list if data[date]])
-    real_max_value = self.SetChartYAxisLabels(chart, max_value)
+    real_max_value = self.SetChartYAxisLabels(chart, max_value, False)
     normalization_factor = \
       pygooglechart.SimpleData.max_value() / float(real_max_value)
 
@@ -273,6 +300,46 @@ class ChartCreator(object):
 
     return chart
 
+  def GetUsageChart(self, interval):
+    """Generates the Chart object for the total quota usage, based on reporting
+    data stored in the gapps_reporting table.
+    The data are plotted for the last @p interval days."""
+
+    # If the interval is longer than two months, the data will be aggrated for
+    # every week.
+    if interval > 61:
+      start_date = datetime.date.today() - datetime.timedelta(interval)
+      start_date -= datetime.timedelta(start_date.weekday())
+      aggregation_interval = 7
+    else:
+      start_date = datetime.date.today() - datetime.timedelta(interval)
+      aggregation_interval = 1
+    (day_list, data) = self.GetDataIndexValues(
+      "SELECT * " \
+      "FROM gapps_reporting " \
+      "WHERE date >= DATE_SUB(CURDATE(), INTERVAL %s DAY) " \
+      "ORDER BY date",
+      (interval,),
+      interval)
+    chart = pygooglechart.SimpleLineChart(500, 250, title='Disk usage accross accounts')
+
+    # Chart axis and max value preparation.
+    max_value = \
+      max([data[date]["usage_in_bytes"] for date in day_list if data[date]])
+    real_max_value = self.SetChartYAxisLabels(chart, max_value, True)
+    normalization_factor = \
+      pygooglechart.SimpleData.max_value() / float(real_max_value)
+
+    self.SetChartXAxisLabels(chart, day_list)
+
+    # Data serie preparation.
+    self.AddDataSerieToChart(
+      chart, data, day_list, normalization_factor,
+      lambda row: row["usage_in_bytes"])
+
+    chart.set_legend(('Usage in bytes',));
+    return chart
+
   def StoreChartsTo(self, destination, prefix=None):
     """Retrieves the two charts, and stores them to the destination directory"""
 
@@ -287,6 +354,13 @@ class ChartCreator(object):
     chart_year.download(os.path.join(destination,
                                      '%sactivity-yearly.png' % prefix))
 
+    chart_month = self.GetUsageChart(31)
+    chart_month.download(os.path.join(destination,
+                                      '%susage-monthly.png' % prefix))
+
+    chart_year = self.GetUsageChart(365)
+    chart_year.download(os.path.join(destination,
+                                     '%susage-yearly.png' % prefix))
 
 if __name__ == '__main__':
   parser = optparse.OptionParser()
