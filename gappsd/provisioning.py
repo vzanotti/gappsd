@@ -382,6 +382,9 @@ class ProvisioningApiClient(object):
           logger.info("Provisioning API - got 401 http error code")
           self._RenewService()
           raise TransientError("Provisioning API - Invalid token")
+        elif error.args[0]["status"] == 500:
+          logger.info("Provisioning API - Internal Server Error")
+          raise TransientError("Provisioning API - Internal Server Error")
         else:
           logger.info("Provisioning API - Unknown error: %s" % error)
           raise TransientError("Provisioning API - Unknown error: %s" % error)

@@ -102,7 +102,7 @@ class SQL(object):
     except MySQLdb.ProgrammingError, message:
       raise SQLPermanentError("ProgrammingError: %s" % message)
     except MySQLdb.Warning, message:
-      raise SQLPermanentError("Warning: %s" % message)
+      logger.critical("SQL Warning: %s" % message)
     except MySQLdb.Error, message:
       raise SQLTransientError("Error: %s" % message)
 
