@@ -175,7 +175,8 @@ class Job(object):
     }
     self._data.update(values)
     self._sql.Update("gapps_queue", values, {"q_id": self._data['q_id']})
-    logger.warning("Did set admin flag on job <%s>" % (self.__str__(),))
+    logger.critical("Job marked as admin-only",
+                    extra={"details": self.__longstr__()})
 
   def MarkActive(self):
     """Updates the job to the 'currently being processed' status."""

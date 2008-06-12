@@ -104,7 +104,9 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
       self._PrepareRecord(record)
 
     s = self._MAIL_TEMPLATE % record.__dict__
-    if record.exc_info:
+    if "details" in record.__dict__:
+      s = s + record.details if s[-1] == '\n' else record.details
+    elif record.exc_info:
       record.exc_text = self.formatter.formatException(record.exc_info)
       if record.exc_text:
         s = s + record.exc_text if s[-1] == '\n' else record.exc_text
