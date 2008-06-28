@@ -128,3 +128,12 @@ class Cli(object):
       print("")
       self._queue.ProcessJob(job)
       print("")
+
+    # Eventually destroys the authentication tokens.
+    provisioning_client = GetProvisioningApiClientInstance()
+    if provisioning_client:
+      provisioning_client.LogOut()
+
+    reporting_client = GetReportingApiClientInstance()
+    if reporting_client:
+      reporting_client.LogOut()

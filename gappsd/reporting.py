@@ -247,7 +247,6 @@ class ReportingApiClient(google.reporting.ReportRunner):
 
   def _RenewToken(self):
     """Checks that the token isn't expired yet, and renew it if it is."""
-    # TODO(vzanotti): implement LogOut methods.
 
     if self.token is None or self.token_expiration < datetime.datetime.now():
       try:
@@ -265,6 +264,14 @@ class ReportingApiClient(google.reporting.ReportRunner):
           logger.critical("Reporting API - Authentication refused")
           raise logger.CredentialError("Bad credential for Reporting API")
         raise TransientError("LoginError: %s" % error)
+
+  def LogOut(self):
+    """Invalidates the current token, by calling the logout method on
+    Google-side. Should be called whenever the token will not be used in the
+    future."""
+
+    # TODO(vzanotti): implement.
+    pass
 
   @staticmethod
   def GetLatestReportDate(now_pst=None):
@@ -319,11 +326,13 @@ class ReportingApiClient(google.reporting.ReportRunner):
 
     return csv.DictReader(report.split("\n"))
 
-def GetReportingApiClientInstance(config):
+def GetReportingApiClientInstance(config=None):
   """Returns the global reporting API client instance, and instantiates it
-  if needed."""
+  if needed. Returns None if there is no current client and config is None."""
   global reporting_api_client
   if reporting_api_client is None:
+    if not config:
+      return None
     reporting_api_client = ReportingApiClient(config)
   return reporting_api_client
 

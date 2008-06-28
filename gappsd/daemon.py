@@ -30,7 +30,10 @@ from .logger import CredentialError, TransientError
 class Daemon(object):
   """The GApps daemon runner: initializes the database, configuration and
   logging helpers, runs the job Queue, and handles its errors (by switching
-  to a "backup-doing-nothing-but-sending-emails" mode in case of problems."""
+  to a "backup-doing-nothing-but-sending-emails" mode in case of problems.
+
+  TODO(vzanotti): sets up a "on-ctrl-c" hook, to release ressources (eg. tokens)
+  and to exit gracefully (eg. without backtrace)."""
 
   _BACKUP_EMAIL_INTERVAL = 3600
   _TRANSIENT_ERROR_RESTART_DELAY = 600

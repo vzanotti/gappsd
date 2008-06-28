@@ -306,8 +306,6 @@ class ProvisioningApiClient(object):
   Example usage:
     provisioning = ProvisioningApiClient(config)
     provisioning.CreateUser(Cf. google/gdata/apps/service.py for usage)
-
-  TODO(vzanotti): Implement token logout methods.
   """
 
   def __init__(self, config, apps_service=None):
@@ -357,6 +355,14 @@ class ProvisioningApiClient(object):
       logger.info("Provisioning API - Authentication failed with unknown error")
       raise TransientError( \
         "Other error for Provisioning API authentication:\n%s" % error)
+
+  def LogOut(self):
+    """Invalidates the current token, by calling the logout method on
+    Google-side. Should be called whenever the token will not be used in the
+    future."""
+
+    # TODO(vzanotti): implement.
+    pass
 
   def _ProcessApiRequest(self, method, pargs, nargs, acceptable_error_codes=None):
     """Common API Request processor: calls a function of the underlying service,
@@ -444,11 +450,13 @@ class ProvisioningApiClient(object):
       self._service.DeleteUser, pargs, nargs,
       (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
 
-def GetProvisioningApiClientInstance(config):
+def GetProvisioningApiClientInstance(config=None):
   """Returns the global provisioning APi client instance (instantiates it if
-  needed)."""
+  needed). Returns None if there is no current client and config is None."""
   global provisioning_api_client
   if provisioning_api_client is None:
+    if not config:
+      return None
     provisioning_api_client = ProvisioningApiClient(config)
   return provisioning_api_client
 
