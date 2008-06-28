@@ -16,10 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import gappsd.account as account
-import testing.database
-import unittest
+import gappsd.database as database
+import mox, unittest
 
-class TestAccount(unittest.TestCase):
+class TestAccount(mox.MoxTestBase):
   _ACCOUNT_DICT = {
     "g_account_name": "foo.bar",
     "g_first_name": "foo",
@@ -27,18 +27,20 @@ class TestAccount(unittest.TestCase):
   }
 
   def setUp(self):
-    self.sql = testing.database.MockSQL()
+    mox.MoxTestBase.setUp(self)
+    self.sql = self.mox.CreateMock(database.SQL)
     self.account = account.Account("foo.bar", self._ACCOUNT_DICT)
 
   def testLoadFromDatabase(self):
-    self.sql.query_result = None
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg())
+    self.sql.Query(mox.IgnoreArg(), ('foo.bar',)).AndReturn([self._ACCOUNT_DICT])
+    self.mox.ReplayAll()
+
     self.assertEquals(
       account.LoadAccountFromDatabase(self.sql, "bar.foo"),
       None)
 
-    self.sql.query_result = [self._ACCOUNT_DICT]
     a = account.LoadAccountFromDatabase(self.sql, "foo.bar")
-    self.assertEquals(self.sql.query_args, ('foo.bar',))
     self.assertEquals(a.get("g_account_name"), "foo.bar")
     self.assertEquals(a.get("g_admin"), True)
 
@@ -51,33 +53,35 @@ class TestAccount(unittest.TestCase):
     self.assertEquals(self.account.get("g_last_name"), "qux")
 
   def testCreateMissingFields(self):
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg())
+    self.mox.ReplayAll()
+
     self.assertRaises(account.AccountActionError,
                       self.account.Create, self.sql)
 
   def testCreate(self):
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg())
+    self.sql.Insert('gapps_accounts',
+                    {'g_first_name': 'foo', 'g_last_name': 'bar',
+                     'g_admin': True, 'g_account_name': 'foo.bar'})
+    self.mox.ReplayAll()
+
     self.account.set("g_last_name", "bar")
-    self.sql.insert_result = None
     self.account.Create(self.sql)
 
-    self.assertEquals(self.sql.insert_table, "gapps_accounts")
-    self.assertEquals(
-      self.sql.insert_values,
-      {'g_first_name': 'foo', 'g_last_name': 'bar', 'g_admin': True,
-       'g_account_name': 'foo.bar'})
-
   def testUpdate(self):
+    self.sql.Update('gapps_accounts',
+                    {'g_status': 'disabled'},
+                    {'g_account_name': 'foo.bar'})
+    self.mox.ReplayAll()
+
     self.account.set("g_status", account.Account.STATUS_DISABLED)
-    self.sql.update_result = None
     self.account.Update(self.sql)
 
-    self.assertEquals(self.sql.update_table, "gapps_accounts")
-    self.assertEquals(self.sql.update_values, {'g_status': 'disabled'})
-    self.assertEquals(self.sql.update_where, {'g_account_name': 'foo.bar'})
-
   def testDelete(self):
+    self.sql.Execute('DELETE FROM gapps_accounts WHERE g_account_name = %s',
+                     ('foo.bar',))
+    self.mox.ReplayAll()
+
     self.sql.execute_query = None
     self.account.Delete(self.sql)
-
-    self.assertEquals(self.sql.execute_query,
-                      "DELETE FROM gapps_accounts WHERE g_account_name = %s")
-    self.assertEquals(self.sql.execute_args, ("foo.bar",))

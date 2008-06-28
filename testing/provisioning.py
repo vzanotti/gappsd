@@ -22,9 +22,8 @@ import gappsd.logger as logger
 import gappsd.provisioning as provisioning
 import gdata.apps.service
 import gdata.service
-import mox
 import testing.config
-import unittest
+import mox, unittest
 
 class TestUserJob(unittest.TestCase):
   _JOB_DATA = {
@@ -144,10 +143,10 @@ class TestProvisioningApiClient(mox.MoxTestBase):
 
   def testUpdateUser(self):
     kException42 = gdata.apps.service.AppsForYourDomainException(
-        {"status": "42"})
+      {"status": "42"})
     kException42.error_code = gdata.apps.service.UNKOWN_ERROR
     kException200 = gdata.apps.service.AppsForYourDomainException(
-        {"status": "200"})
+      {"status": "200"})
     kException200.error_code = gdata.apps.service.ENTITY_DOES_NOT_EXIST
     kException200.reason = ""
 
@@ -166,10 +165,10 @@ class TestProvisioningApiClient(mox.MoxTestBase):
 
   def testTryUpdateUser(self):
     kExceptionEntity = gdata.apps.service.AppsForYourDomainException(
-        {"status": "42"})
+      {"status": "42"})
     kExceptionEntity.error_code = gdata.apps.service.ENTITY_DOES_NOT_EXIST
     kExceptionUser = gdata.apps.service.AppsForYourDomainException(
-        {"status": "200"})
+      {"status": "200"})
     kExceptionUser.error_code = gdata.apps.service.USER_SUSPENDED
     kExceptionUser.reason = ""
 
