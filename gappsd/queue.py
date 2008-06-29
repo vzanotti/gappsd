@@ -223,12 +223,14 @@ class Queue(object):
       logger.info("Starting to process <%s>" % (j.__str__(),))
       old_status = j.status()
       j.Run()
-      if j.status()[0] not in [j.STATUS_SUCCESS,
+      new_status = j.status()
+
+      if new_status[0] not in [j.STATUS_SUCCESS,
                                j.STATUS_HARDFAIL,
                                j.STATUS_IDLE]:
-        if j.status()[1] == old_status[1]:
+        if new_status[1] == old_status[1]:
           j.Update(j.STATUS_SUCCESS)
-      logger.info("Processed <%s>: %s" % (j.__str__(), j.status()[0]))
+      logger.info("Processed <%s>: %s" % (j.__str__(), new_status[0]))
     except (TransientError, database.SQLTransientError), message:
       self._AddTransientError(j, message)
       j.Update(j.STATUS_SOFTFAIL, message)
