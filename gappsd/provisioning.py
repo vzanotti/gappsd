@@ -60,7 +60,7 @@ class UserJob(job.Job):
       if field in self._parameters:
         if not isinstance(self._parameters[field], basestring):
           self._parameters[field] = unicode(self._parameters[field])
-        if not self._FIELDS_REGEXP[field].match(unicode(self._parameters[field])):
+        if not self._FIELDS_REGEXP[field].match(self._parameters[field]):
           raise job.JobContentError("Field '%s' did not match regexp '%s'." % \
             (field, self._FIELDS_REGEXP[field]))
 
