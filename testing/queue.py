@@ -44,8 +44,7 @@ class TestCreateQueueJob(mox.MoxTestBase):
 class TestQueue(mox.MoxTestBase):
   _VALID_JOB_DICT = {
     "q_id": 1, "p_status": "idle", "p_entry_date": 42, "p_start_date": 42,
-    "r_softfail_count": 0, "r_softfail_date": None, "j_type": "foo",
-    "j_parameters": None
+    "r_softfail_count": 0, "r_softfail_date": None, "j_parameters": None
   }
 
   def setUp(self):
@@ -114,6 +113,7 @@ class TestQueue(mox.MoxTestBase):
     self.mox.ResetAll()
 
     # Tests an invalid job retrieval.
+    self._VALID_JOB_DICT['j_type'] = 'foo'
     self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn([self._VALID_JOB_DICT])
     self.sql.Update(mox.IgnoreArg(),
                     mox.And(mox.ContainsKeyValue('p_status', 'hardfail'),
@@ -124,11 +124,8 @@ class TestQueue(mox.MoxTestBase):
     self.mox.ResetAll()
 
     # Tests a successful job retrieval.
-    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn([{
-      "q_id": 1, "p_status": "idle", "p_entry_date": 42, "p_start_date": 42,
-      "r_softfail_count": 0, "r_softfail_date": None, "j_type": "mock",
-      "j_parameters": None
-    }])
+    self._VALID_JOB_DICT['j_type'] = 'mock'
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn([self._VALID_JOB_DICT])
     kTestJob.MarkActive()
     self.mox.ReplayAll()
     j = self.queue._GetJobFromQueue('offline')

@@ -48,12 +48,21 @@ class TestJob(mox.MoxTestBase):
     "p_start_date": 1200043559, "r_softfail_count": 1,
     "r_softfail_date": 1200043259, "j_type": "u_create", "j_parameters": "{}"
   }
-  _HARDFAIL_DICT = _VALID_DICT.copy()
-  _HARDFAIL_DICT.update({"q_id": 43, "r_softfail_count": 3})
-  _BADJSON_DICT = _VALID_DICT.copy()
-  _BADJSON_DICT.update({"j_parameters": ""})
-  _NO_QID_DICT = _VALID_DICT.copy()
-  _NO_QID_DICT.pop("q_id")
+  _HARDFAIL_DICT = {
+    "q_id": 43, "p_status": "active", "p_entry_date": 1200043549,
+    "p_start_date": 1200043559, "r_softfail_count": 3,
+    "r_softfail_date": 1200043259, "j_type": "u_create", "j_parameters": "{}"
+  }
+  _BADJSON_DICT = {
+    "q_id": 42, "p_status": "active", "p_entry_date": 1200043549,
+    "p_start_date": 1200043559, "r_softfail_count": 1,
+    "r_softfail_date": 1200043259, "j_type": "u_create", "j_parameters": ""
+  }
+  _NO_QID_DICT = {
+    "p_status": "active", "p_entry_date": 1200043549,
+    "p_start_date": 1200043559, "r_softfail_count": 1,
+    "r_softfail_date": 1200043259, "j_type": "u_create", "j_parameters": "{}"
+  }
 
   def setUp(self):
     mox.MoxTestBase.setUp(self)
