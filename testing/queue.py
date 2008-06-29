@@ -16,30 +16,32 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import gappsd.database as database
 import gappsd.job as job
 import gappsd.logger as logger
 import gappsd.queue as queue
 import testing.config
-import testing.database
-import unittest
+import mox, unittest
 
-class TestCreateQueueJob(unittest.TestCase):
+class TestCreateQueueJob(mox.MoxTestBase):
   def setUp(self):
-    self.sql = testing.database.MockSQL()
+    mox.MoxTestBase.setUp(self)
+    self.sql = self.mox.CreateMock(database.SQL)
 
   def testCreateQueueJob(self):
-    self.sql.insert_result = None
-    queue.CreateQueueJob(self.sql, 'u_sync', [{}, {"blih": 1}],
-                         p_entry_date=datetime.datetime(2007, 1, 1, 1))
-    self.assertEquals(self.sql.insert_values, {
+    self.sql.Insert('gapps_queue', {
       "j_type": "u_sync",
       "j_parameters": "[{}, {\"blih\": 1}]",
       "p_priority": "normal",
       "p_entry_date": "2007-01-01 01:00:00",
       "p_notbefore_date": "2007-01-01 01:00:00",
     })
+    self.mox.ReplayAll()
 
-class TestQueue(unittest.TestCase):
+    queue.CreateQueueJob(self.sql, 'u_sync', [{}, {"blih": 1}],
+                         p_entry_date=datetime.datetime(2007, 1, 1, 1))
+
+class TestQueue(mox.MoxTestBase):
   _VALID_JOB_DICT = {
     "q_id": 1, "p_status": "idle", "p_entry_date": 42, "p_start_date": 42,
     "r_softfail_count": 0, "r_softfail_date": None, "j_type": "foo",
@@ -47,8 +49,9 @@ class TestQueue(unittest.TestCase):
   }
 
   def setUp(self):
+    mox.MoxTestBase.setUp(self)
     self.config = testing.config.MockConfig()
-    self.sql = testing.database.MockSQL()
+    self.sql = self.mox.CreateMock(database.SQL)
     self.queue = queue.Queue(self.config, self.sql)
 
   def testCanWarnForOverflow(self):
@@ -90,85 +93,99 @@ class TestQueue(unittest.TestCase):
     self.assertEquals(queues, [])
 
   def testGetJobCounts(self):
-    self.sql.query_result = [
+    self.sql.Query(mox.IgnoreArg()).AndReturn([
       {"p_priority": "immediate", "count": 42},
       {"p_priority": "normal", "count": 69},
       {"p_priority": "offline", "count": 666},
-    ]
+    ])
+    self.mox.ReplayAll()
+
     self.assertEquals(self.queue._GetJobCounts(),
                       {"immediate": 42, "normal": 69, "offline": 666})
 
   def testGetJobFromQueue(self):
+    kTestJob = self.mox.CreateMock(job.Job)
+    testing.job.RegisterMockedJob(kTestJob)
+
     # Tests a failed Job Retrieval.
-    self.sql.query_result = ()
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(())
+    self.mox.ReplayAll()
     self.assertEquals(self.queue._GetJobFromQueue('offline'), None)
+    self.mox.ResetAll()
 
     # Tests an invalid job retrieval.
-    self.sql.query_result = [self._VALID_JOB_DICT]
-    self.sql.update_result = None
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn([self._VALID_JOB_DICT])
+    self.sql.Update(mox.IgnoreArg(),
+                    mox.And(mox.ContainsKeyValue('p_status', 'hardfail'),
+                            mox.ContainsKeyValue('r_result', "Job instantiation error: Job 'foo' is undefined.")),
+                    mox.IgnoreArg())
+    self.mox.ReplayAll()
     self.assertEquals(self.queue._GetJobFromQueue('offline'), None)
-    self.assertEquals(self.sql.update_values["p_status"], "hardfail")
-    self.assertEquals(self.sql.update_values["r_result"],
-                      "Job instantiation error: Job 'foo' is undefined.")
+    self.mox.ResetAll()
 
     # Tests a successful job retrieval.
-    self.sql.query_result = [{
+    self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn([{
       "q_id": 1, "p_status": "idle", "p_entry_date": 42, "p_start_date": 42,
       "r_softfail_count": 0, "r_softfail_date": None, "j_type": "mock",
       "j_parameters": None
-    }]
+    }])
+    kTestJob.MarkActive()
+    self.mox.ReplayAll()
     j = self.queue._GetJobFromQueue('offline')
-    self.assertEquals(j._data["p_entry_date"], 42)
+    self.mox.ResetAll()
 
   def testProcessJob(self):
+    kTestJob = self.mox.CreateMock(job.Job)
+
     # Tests a successful job.
-    j = testing.job.MockJob(None, None, self._VALID_JOB_DICT)
-    j.MarkActive()
-    self.queue._ProcessJob(j)
-    self.assertEquals(j.update_status, job.Job.STATUS_SUCCESS)
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Run()
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Update('success')
+    self.mox.ReplayAll()
+    self.queue._ProcessJob(kTestJob)
+    self.mox.ResetAll()
 
     # Tests a TransientError-raising job.
-    j = testing.job.MockJob(None, None, self._VALID_JOB_DICT)
-    j.run_result = logger.TransientError()
-    j.MarkActive()
-    self.queue._ProcessJob(j)
-    self.assertEquals(j.update_status, job.Job.STATUS_SOFTFAIL)
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Run().AndRaise(logger.TransientError)
+    kTestJob.Update('softfail', mox.IsA(logger.TransientError))
+    self.mox.ReplayAll()
+    self.queue._ProcessJob(kTestJob)
+    self.mox.ResetAll()
 
     # Tests a PermanentError-raising job.
-    j = testing.job.MockJob(None, None, self._VALID_JOB_DICT)
-    j.run_result = logger.PermanentError()
-    j.MarkActive()
-    self.queue._ProcessJob(j)
-    self.assertEquals(j.update_status, job.Job.STATUS_HARDFAIL)
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Run().AndRaise(logger.PermanentError)
+    kTestJob.Update('hardfail', mox.IsA(logger.PermanentError))
+    self.mox.ReplayAll()
+    self.queue._ProcessJob(kTestJob)
+    self.mox.ResetAll()
 
   def testProcessNextJob(self):
-    self.job_requested = {}
-    self.job_processed = []
-    def mockGetJobCounts():
-      return {"immediate": 1, "normal": 0, "offline": 1}
-    def mockGetJobFromQueue(queue):
-      self.job_requested[queue] = True
-      return queue
-    def mockProcessJob(job):
-      self.job_processed.append(job)
-
-    self.queue._GetJobCounts = mockGetJobCounts
-    self.queue._GetJobFromQueue = mockGetJobFromQueue
-    self.queue._ProcessJob = mockProcessJob
+    self.mox.StubOutWithMock(self.queue, "_GetJobCounts")
+    self.mox.StubOutWithMock(self.queue, "_GetJobFromQueue")
+    self.mox.StubOutWithMock(self.queue, "_ProcessJob")
+    self.queue._GetJobCounts().AndReturn({
+      "immediate": 1, "normal": 0, "offline": 1})
+    self.queue._GetJobFromQueue('immediate').AndReturn('immediate_job')
+    self.queue._ProcessJob('immediate_job')
+    self.queue._GetJobFromQueue('offline').AndReturn('offline_job')
+    self.queue._ProcessJob('offline_job')
+    self.mox.ReplayAll()
 
     self.queue._ProcessNextJob()
     self.assertEquals(self.queue._job_counts["immediate"], 1)
-    self.assertEquals(self.job_processed[0], "immediate")
-    self.assertEquals(self.job_processed[1], "offline")
 
   def testAddTransientError(self):
+    # Raises an exception to make sure sys.exc_info returns something.
     try:
       this_variable_doesnt_exist
     except:
       pass
 
-    j = testing.job.MockJob(None, None, self._VALID_JOB_DICT)
-    self.queue._AddTransientError(j, "message")
+    self.queue._AddTransientError(testing.job.DummyJob(), "message")
+    self.assertEquals(len(self.queue._transient_errors), 1)
 
   def testCheckTransientErrors(self):
     self.queue._CREDENTIAL_ERRORS_THRESHOLD = 1
