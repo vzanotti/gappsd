@@ -16,42 +16,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import gappsd.database as database
+import gappsd.job as job
 import gappsd.logger as logger
 import gappsd.reporting as reporting
-import google.reporting as greporting
+import google.reporting
 import testing.config
-import testing.database
 import time
-import unittest
+import mox, unittest
 
-class MockReportingApiClient(object):
-  """Mock version of the ReportingApiClient, used to test Activity and Accounts
-  jobs. Usage: self.reports contain a sequence of (date, name, result), which
-  are returned to the MockReportingApiClient user. Last element of the sequence
-  is served first.
-  """
-
-  def __init__(self):
-    self.reports = []
-
-  def GetLatestReportDate(self, now_pst=None):
-    return datetime.date(2007, 1, 1)
-
-  def GetReport(self, date, report_name):
-    if not len(self.reports):
-      raise logger.TransientError( \
-        "Unexpected request (%s, %s)" % (date, report_name))
-    if date != self.reports[-1][0]:
-      self.reports.pop()
-      raise logger.TransientError("Bad report date")
-    if report_name != self.reports[-1][1]:
-      self.reports.pop()
-      raise logger.TransientError("Bad report name")
-
-    return self.reports.pop()[2]
-
-
-class TestActivityJob(unittest.TestCase):
+class TestActivityJob(mox.MoxTestBase):
   _ACTIVITY_JOB_DATA = {
     "q_id": 42, "p_status": "active", "p_entry_date": 1200043549,
     "p_start_date": 1200043559, "j_type": "r_activity", "j_parameters": "{}",
@@ -59,26 +33,33 @@ class TestActivityJob(unittest.TestCase):
   }
 
   def setUp(self):
+    mox.MoxTestBase.setUp(self)
+    self.client = self.mox.CreateMock(reporting.ReportingApiClient)
     self.config = testing.config.MockConfig()
-    self.sql = testing.database.MockSQL()
+    self.sql = self.mox.CreateMock(database.SQL)
+    reporting.reporting_api_client = self.client
+
     self.activity = \
       reporting.ActivityJob(self.config, self.sql, self._ACTIVITY_JOB_DATA)
-    reporting.reporting_api_client = MockReportingApiClient()
 
   def testGetLastReportDate(self):
-    self.sql.query_result = [{"date": None}]
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"date": None}])
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"date": 1167608563}])
+    self.mox.ReplayAll()
+
     self.assertEquals(self.activity._GetLastReportDate(),
                       datetime.date.today() - datetime.timedelta(30))
-
-    self.sql.query_result = [{"date": 1167608563}]
     self.assertEquals(self.activity._GetLastReportDate(),
                       datetime.date(2007, 1, 1))
 
   def testListDaysToProcess(self):
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"date": 1167435763}])
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.mox.ReplayAll()
+
     yesterday = datetime.date(2007, 1, 1)
     two_days_ago = yesterday - datetime.timedelta(1)
-    self.sql.query_result = [{"date": 1167435763}]
-
     two_days = self.activity._ListDaysToProcess()
     one_day = self.activity._ListDaysToProcess(two_days_ago)
 
@@ -88,40 +69,54 @@ class TestActivityJob(unittest.TestCase):
   def testRunDailyReport(self):
     date20070101 = datetime.date(2007, 1, 1)
     date20070102 = datetime.date(2007, 1, 2)
+
+    self.client.GetReport(datetime.date(2007, 1, 1), 'activity').AndReturn(
+      [{"date": "20070101", "usage_in_bytes": 42}])
+    self.client.GetReport(datetime.date(2007, 1, 1), 'summary').AndReturn(
+      [{"date": "20070101", "quota_in_mb": 69}])
+    self.sql.Insert('gapps_reporting',
+                    {"date": "20070101", "usage_in_bytes": 42, "quota_in_mb": 69})
+    self.mox.ReplayAll()
+    self.assertEquals(self.activity.RunDailyReport(date20070101,
+                                                   date20070101), 1)
+    self.mox.ResetAll()
+
     reporting.reporting_api_client.reports = [
-      (date20070101, "summary", [{"date": "20070101", "quota_in_mb": 69}]),
-      (date20070101, "activity", [{"date": "20070101", "usage_in_bytes": 42}]),
       (date20070101, "summary", [{"date": "20070101", "quota_in_mb": 69}]),
       (date20070101, "activity", [{"date": "20070101", "usage_in_bytes": 42}]),
     ]
 
-    self.assertEquals(self.activity.RunDailyReport(date20070101,
-                                                   date20070101), 1)
-    self.assertEquals(self.sql.insert_values, {
-      "date": "20070101", "usage_in_bytes": 42, "quota_in_mb": 69
-    })
 
-    self.sql.insert_values = None
+    self.client.GetReport(datetime.date(2007, 1, 1), 'activity').AndReturn(
+      [{"date": "20070101", "usage_in_bytes": 42}])
+    self.client.GetReport(datetime.date(2007, 1, 1), 'summary').AndReturn(
+      [{"date": "20070101", "quota_in_mb": 69}])
+    self.mox.ReplayAll()
     self.assertEquals(self.activity.RunDailyReport(date20070101,
                                                    date20070102), 0)
-    self.assertEquals(self.sql.insert_values, None)
+    self.mox.ResetAll()
 
   def testRun(self):
     yesterday = datetime.date(2007, 1, 1)
     two_days_ago = yesterday - datetime.timedelta(1)
-    reporting.reporting_api_client.reports = [
-      (yesterday, "summary", [{"date": "20070102", "usage_in_bytes": 43}]),
-      (yesterday, "activity", None),
-    ]
-    self.sql.query_result = [{"date": 1167522163}]
+
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"date": 1167522163}])
+    self.client.GetReport(yesterday, 'activity')
+    self.client.GetReport(yesterday, 'summary').AndReturn(
+      [{"date": "20070102", "usage_in_bytes": 43}])
+    self.sql.Insert(mox.IgnoreArg(),
+                    mox.And(mox.ContainsKeyValue('date', '20070102'),
+                            mox.ContainsKeyValue('usage_in_bytes', 43)))
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.mox.StubOutWithMock(self.activity, 'Update')
+    self.activity.Update(job.Job.STATUS_SUCCESS, mox.IgnoreArg())
+    self.mox.ReplayAll()
 
     self.activity.Run()
-    self.assertEquals(self.sql.insert_values, {
-      "date": "20070102", "usage_in_bytes": 43
-    })
 
 
-class TestAccountsReport(unittest.TestCase):
+class TestAccountsReport(mox.MoxTestBase):
   _ACCOUNTS_JOB_DATA = {
     "q_id": 42, "p_status": "active", "p_entry_date": 1200043549,
     "p_start_date": 1200043559, "j_type": "r_activity", "j_parameters": "{}",
@@ -134,117 +129,133 @@ class TestAccountsReport(unittest.TestCase):
     "r_last_webmail": "20070101", "g_suspension": None,
   }
 
-  # Methods to be injected in the AccountsJob object.
-  class SQLUsed(Exception):
-    pass
-  class ReportingUsed(Exception):
-    pass
-  class SQLReportingUsed(Exception):
-    pass
-
-  def SynchronizeSQLAccount(self, sql):
-    raise self.SQLUsed
-  def SynchronizeReportingAccount(self, reporting):
-    raise self.ReportingUsed
-  def SynchronizeSQLReportingAccounts(self, sql, reporting):
-    raise self.SQLReportingUsed
-
-  # Tests.
   def setUp(self):
+    mox.MoxTestBase.setUp(self)
+    self.client = self.mox.CreateMock(reporting.ReportingApiClient)
     self.config = testing.config.MockConfig()
-    self.sql = testing.database.MockSQL()
+    self.sql = self.mox.CreateMock(database.SQL)
+    reporting.reporting_api_client = self.client
+
     self.accounts = \
       reporting.AccountsJob(self.config, self.sql, self._ACCOUNTS_JOB_DATA)
-    reporting.reporting_api_client = MockReportingApiClient()
 
   def testSynchronizeSQLAccount(self):
-    self.sql.insert_result = None
+    self.sql.Insert('gapps_queue',
+                    mox.ContainsKeyValue('j_parameters',
+                                         '{"username": "foo.bar"}'))
+    self.mox.ReplayAll()
     self.accounts.SynchronizeSQLAccount({
       "g_account_name": "foo.bar",
       "g_status": "active",
     })
-    self.assertEquals(self.sql.insert_values["j_parameters"],
-                      '{"username": "foo.bar"}')
+    self.mox.ResetAll()
 
-    self.sql.insert_values = None
+    self.mox.ReplayAll()
     self.accounts.SynchronizeSQLAccount({
       "g_account_name": "qux.quz",
       "g_status": "unprovisioned",
     })
-    self.assertEquals(self.sql.insert_values, None)
 
   def testSynchronizeReportingAccount(self):
+    self.sql.Insert('gapps_queue',
+                    mox.ContainsKeyValue('j_parameters',
+                                         '{"username": "foo.bar"}'))
+    self.mox.ReplayAll()
+
     self.accounts.SynchronizeReportingAccount({
       "account_name": "foo.bar",
       "creation_date": "20070101",
     })
-    self.assertEquals(self.sql.insert_values["j_parameters"],
-                      '{"username": "foo.bar"}')
 
   def testSynchronizeSQLReportingAccounts(self):
-    self.sql.insert_values = None
+    # Test the synchronization of reporting-owned values.
+    self.sql.Update('gapps_accounts',
+                    mox.ContainsKeyValue('r_disk_usage', 69),
+                    mox.IgnoreArg())
+    self.sql.Insert('gapps_accounts', None)
+    self.mox.ReplayAll()
     self.accounts.SynchronizeSQLReportingAccounts(self._ACCOUNT_DICT,
       {"usage_in_bytes": 69, "last_login_date": "20070101"})
-    self.assertEquals(self.sql.insert_values, None)
-    self.assertEquals(self.sql.update_values["r_disk_usage"], 69)
+    self.mox.ResetAll()
 
+    # Test the synchronization of values owned by the provisioning API.
+    self.sql.Update('gapps_accounts',
+                    mox.ContainsKeyValue('r_last_webmail', '20070102'),
+                    mox.IgnoreArg())
+    self.sql.Insert('gapps_queue',
+                    mox.ContainsKeyValue('j_parameters',
+                                         '{"username": "foo.bar"}'))
+    self.mox.ReplayAll()
     self.accounts.SynchronizeSQLReportingAccounts(self._ACCOUNT_DICT,
       {"surname": "qux", "last_web_mail_date": "20070102"})
-    self.assertEquals(self.sql.insert_values["j_parameters"],
-                      '{"username": "foo.bar"}')
-    self.assertEquals(self.sql.update_values["r_last_webmail"], "20070102")
+    self.mox.ResetAll()
 
   def testFetchSQLAccounts(self):
-    self.sql.query_query = None
-    self.sql.query_result = [{"g_account_name": "foo.bar"}]
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"g_account_name": "foo.bar"}])
+    self.mox.ReplayAll()
+
     a = self.accounts.FetchSQLAccounts()
     self.assertEquals(a, {"foo.bar": {"g_account_name": "foo.bar"}})
 
   def testFetchReportingAccounts(self):
-    reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [])
-    ]
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.client.GetReport(datetime.date(2007, 1, 1), 'accounts').AndReturn([])
+    self.mox.ReplayAll()
+
     self.accounts.FetchReportingAccounts()
 
   def testRun(self):
-    self.accounts.SynchronizeSQLAccount = self.SynchronizeSQLAccount
-    self.accounts.SynchronizeReportingAccount = self.SynchronizeReportingAccount
-    self.accounts.SynchronizeSQLReportingAccounts = \
-      self.SynchronizeSQLReportingAccounts
+    self.mox.StubOutWithMock(self.accounts, 'SynchronizeSQLAccount')
+    self.mox.StubOutWithMock(self.accounts, 'SynchronizeReportingAccount')
+    self.mox.StubOutWithMock(self.accounts, 'SynchronizeSQLReportingAccounts')
+    self.mox.StubOutWithMock(self.accounts, 'Update')
 
-    self.sql.query_result = [{"g_account_name": "foo.bar"}]
-    reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{
-        "account_name": "foo.bar@a.b",
-        "surname": "foo",
-        "given_name": "bar",
-      }])
-    ]
-    self.assertRaises(self.SQLReportingUsed, self.accounts.Run)
+    # Account which requires a SQL <-> Reporting synchronization.
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"g_account_name": "foo.bar"}])
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.client.GetReport(datetime.date(2007, 1, 1), 'accounts').AndReturn([{
+      "account_name": "foo.bar@a.b",
+      "surname": "foo",
+      "given_name": "bar",
+    }])
+    self.accounts.SynchronizeSQLReportingAccounts(mox.IgnoreArg(), mox.IgnoreArg())
+    self.accounts.Update(job.Job.STATUS_SUCCESS)
+    self.mox.ReplayAll()
+    self.accounts.Run()
+    self.mox.ResetAll()
 
-    self.sql.query_result = [{"g_account_name": "qux.quz"}]
-    reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [])
-    ]
-    self.assertRaises(self.SQLUsed, self.accounts.Run)
+    # Account which requires a SQL <- Reporting synchronization.
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"g_account_name": "qux.quz"}])
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.client.GetReport(datetime.date(2007, 1, 1), 'accounts').AndReturn([])
+    self.accounts.SynchronizeSQLAccount(mox.IgnoreArg())
+    self.accounts.Update(job.Job.STATUS_SUCCESS)
+    self.mox.ReplayAll()
+    self.accounts.Run()
+    self.mox.ResetAll()
 
-    self.sql.query_result = []
-    reporting.reporting_api_client.reports = [
-      (datetime.date(2007, 1, 1), "accounts", [{
-        "account_name": "foo.bar@a.b",
-        "surname": "foo",
-        "given_name": "bar",
-      }])
-    ]
-    self.assertRaises(self.ReportingUsed, self.accounts.Run)
+    # Account which requires a SQL -> Reporting synchronization.
+    self.sql.Query(mox.IgnoreArg()).AndReturn([])
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.client.GetReport(datetime.date(2007, 1, 1), 'accounts').AndReturn([{
+      "account_name": "foo.bar@a.b",
+      "surname": "foo",
+      "given_name": "bar",
+    }])
+    self.accounts.SynchronizeReportingAccount(mox.IgnoreArg())
+    self.accounts.Update(job.Job.STATUS_SUCCESS)
+    self.mox.ReplayAll()
+    self.accounts.Run()
+    self.mox.ResetAll()
 
 
-class TestReportingApiClient(unittest.TestCase):
+class TestReportingApiClient(mox.MoxTestBase):
   # Redefinition of google.reporting.ReportRunner methods.
   def Login(self):
     if self.reporting.admin_email is None or \
        self.reporting.admin_password is None:
-      raise greporting.LoginError("TestReporting: email or password undefined.")
+      raise google.reporting.LoginError( \
+        "TestReporting: email or password undefined.")
     if self.login_result is None:
       return None
     raise self.login_result
@@ -257,36 +268,38 @@ class TestReportingApiClient(unittest.TestCase):
 
   # Tests.
   def setUp(self):
-    self.login_result = None
-    self.request = None
-    self.request_result = None
-
+    mox.MoxTestBase.setUp(self)
     self.reporting = reporting.ReportingApiClient(testing.config.MockConfig())
-    self.reporting.Login = self.Login
-    self.reporting.GetReportData = self.GetReportData
+    self.mox.StubOutWithMock(self.reporting, 'Login')
+    self.mox.StubOutWithMock(self.reporting, 'GetReportData')
 
   def testRenewTokenNotExpired(self):
-    self.login_result = greporting.ConnectionError("", "")
     self.reporting.token = "token"
     self.reporting.token_expiration = \
       datetime.datetime.now() + datetime.timedelta(1)
+    self.mox.ReplayAll()
+
     self.reporting._RenewToken()
 
   def testRenewTokenExpiredNormal(self):
-    self.login_result = None
     self.reporting.token = "token"
     self.reporting.token_expiration = \
       datetime.datetime.now() - datetime.timedelta(0, 1)
+    self.reporting.Login()
+    self.mox.ReplayAll()
+
     self.reporting._RenewToken()
 
   def testRenewTokenError(self):
-    self.login_result = greporting.ConnectionError("", "")
+    self.reporting.Login().AndRaise(
+      google.reporting.ConnectionError('', ''))
+    self.reporting.Login().AndRaise(
+      google.reporting.LoginError('Authentication failure'))
+    self.reporting.Login().AndRaise(google.reporting.LoginError('Foo'))
+    self.mox.ReplayAll()
+
     self.assertRaises(logger.TransientError, self.reporting._RenewToken)
-
-    self.login_result = greporting.LoginError('Authentication failure')
     self.assertRaises(logger.CredentialError, self.reporting._RenewToken)
-
-    self.login_result = greporting.LoginError('Foo')
     self.assertRaises(logger.TransientError, self.reporting._RenewToken)
 
   def testGetLatestReportDate(self):
@@ -298,34 +311,56 @@ class TestReportingApiClient(unittest.TestCase):
       datetime.datetime(2007, 1, 2, 12, 0, 1)), date20070101)
 
   def testGetReport(self):
-    self.request_result = "blih\n1\n2"
+    def ValidReportRequest(report):
+      return report.token == 'token' and report.domain == 'GD' and \
+        report.date == '2006-12-31' and report.report_name == 'activity'
+
     self.reporting.token = "token"
     self.reporting.token_expiration = \
       datetime.datetime.now() - datetime.timedelta(0, 1)
-    r = self.reporting.GetReport(datetime.date(2006, 12, 31), 'activity')
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.Func(ValidReportRequest)).AndReturn('blih\n1\n2')
+    self.mox.ReplayAll()
 
-    self.assertEquals(self.request.domain, "GD")
-    self.assertEquals(self.request.token, "token")
-    self.assertEquals(self.request.report_name, "activity")
-    self.assertEquals(self.request.date, "2006-12-31")
+    r = self.reporting.GetReport(datetime.date(2006, 12, 31), 'activity')
     self.assertEquals([l for l in r], [{"blih": "1"}, {"blih": "2"}])
 
   def testGetReportErrors(self):
-    self.request_result = greporting.ReportError()
-    self.request_result.reason_code = 1001
+    # Test error handling for permanent API errors.
+    kReportError1001 = google.reporting.ReportError()
+    kReportError1001.reason_code = 1001
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.IgnoreArg()).AndRaise(kReportError1001)
+    self.mox.ReplayAll()
     self.assertRaises(logger.PermanentError, self.reporting.GetReport,
                       datetime.date(2006, 12, 31), 'activity')
+    self.mox.ResetAll()
 
-    self.request_result.reason_code = 1006
+    # Test error handling for 'invalid token' API errors.
+    kReportError1006 = google.reporting.ReportError()
+    kReportError1006.reason_code = 1006
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.IgnoreArg()).AndRaise(kReportError1006)
+    self.mox.ReplayAll()
     self.assertRaises(logger.TransientError, self.reporting.GetReport,
                       datetime.date(2006, 12, 31), 'activity')
     self.assertEquals(self.reporting.token, None)
+    self.mox.ResetAll()
 
-    self.request_result = greporting.ConnectionError("", "")
+    # Test error handling for transient API errors.
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.IgnoreArg()).AndRaise(
+      google.reporting.ConnectionError("", ""))
+    self.mox.ReplayAll()
     self.assertRaises(logger.TransientError, self.reporting.GetReport,
                       datetime.date(2006, 12, 31), 'activity')
+    self.mox.ResetAll()
 
   def testGetAbsentReport(self):
-    self.request_result = greporting.ReportError()
-    self.request_result.reason_code = 1045
+    kReportError1045 = google.reporting.ReportError()
+    kReportError1045.reason_code = 1045;
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.IgnoreArg()).AndRaise(kReportError1045)
+    self.mox.ReplayAll()
+
     self.reporting.GetReport(datetime.date(2006, 12, 31), 'activity')
