@@ -19,16 +19,22 @@
 
 Provides a way to execute jobs that the normal gappsd will refuse to execute
 (mainly jobs which involve changes to administrators accounts, or privileged
-actions such as account deletion)."""
+actions such as account deletion).
 
-# TODO(vzanotti): LogOut on authentication tokens.
+TODO(vzanotti): sets up a "on-ctrl-c" hook, to release ressources (eg. tokens)"""
 
 import getpass
 import config, database, logger, queue
 import job, provisioning, reporting
 
 class CliQueue(object):
-  """TODO"""
+  """Implements a representation of the admin job queue, to be used by the GApps
+  CLI. Usage:
+
+  queue = CliQueue(config, sql)
+  jobs = queue.Jobs()
+  queue.ProcessJob(job)
+  """
 
   def __init__(self, config, sql):
     self._config = config
@@ -40,7 +46,7 @@ class CliQueue(object):
     return self._jobs
 
   def Update(self):
-    """TODO"""
+    """Updates the local mirror of pending jobs."""
 
     sql_query = "SELECT %s FROM gapps_queue WHERE %s ORDER BY q_id LIMIT 1" % \
       (queue.Queue._JOB_SELECT_CLAUSE,
@@ -60,13 +66,15 @@ class CliQueue(object):
           (result[0]["q_id"], message))
 
   def ProcessJob(self, job_number):
-    """TODO"""
+    """Tries to process the @p job, using the standard GAppsd's Queue object."""
 
     job = self._jobs[job_number]
     self._queue._ProcessJob(job)
 
 class Cli(object):
-  """TODO"""
+  """Implementation of the Command-Line based version of GAppsd. The cli version
+  is used to execute jobs which require special administrative privileges (eg.
+  account deletion, or capabilities granting."""
 
   def __init__(self, config_file, admin_email):
     """Initializes the CLI using default parameters from the config files, and
@@ -102,7 +110,8 @@ class Cli(object):
     return True
 
   def Run(self):
-    """TODO"""
+    """Runs the CLI tool, by repeatedly listing the pending jobs, and executing
+    those selected by the user."""
 
     while True:
       self._queue.Update()
