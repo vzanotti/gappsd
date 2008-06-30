@@ -56,7 +56,6 @@ class SQL(object):
     self._db = config.get_string("mysql.database")
 
     self._connection = None
-    self.Open()
 
   # Operations on underlying connection.
   def Open(self):
