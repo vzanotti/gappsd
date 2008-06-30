@@ -336,6 +336,14 @@ def GetReportingApiClientInstance(config=None):
     reporting_api_client = ReportingApiClient(config)
   return reporting_api_client
 
+def LogOut():
+  """Eventually invalidates the provisioning tokens -- when available.
+  Should be called at the end of each session to ensure token safety."""
+  
+  client = GetReportingApiClientInstance()
+  if client:
+    client.LogOut()
+
 # Module initialization.
 reporting_api_client = None
 job.job_registry.Register('r_activity', ActivityJob)

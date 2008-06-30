@@ -20,8 +20,7 @@
 Provides a way to execute jobs that the normal gappsd will refuse to execute
 (mainly jobs which involve changes to administrators accounts, or privileged
 actions such as account deletion).
-
-TODO(vzanotti): sets up a "on-ctrl-c" hook, to release ressources (eg. tokens)"""
+"""
 
 import getpass
 import config, database, logger, queue
@@ -113,36 +112,34 @@ class Cli(object):
     """Runs the CLI tool, by repeatedly listing the pending jobs, and executing
     those selected by the user."""
 
-    while True:
-      self._queue.Update()
-      jobs = self._queue.Jobs()
-      self.ListJobs(jobs)
-      if not len(jobs):
-        break
-
-      # Asks for job # to process.
-      job = raw_input("Job ? ")
-      if not job:
-        break
-      if not self.PrintJob(jobs, job):
-        continue
-
-      # Confirms the admin's intention to execute the job.
-      confirm = raw_input("Confirm execution of this job ? (n/y) ")
-      if len(confirm) == 0 or not confirm[0] == 'y':
-        print("Aborting ...")
-        continue
-
-      # Processes the job.
-      print("")
-      self._queue.ProcessJob(job)
-      print("")
+    try:
+      while True:
+        self._queue.Update()
+        jobs = self._queue.Jobs()
+        self.ListJobs(jobs)
+        if not len(jobs):
+          break
+  
+        # Asks for job # to process.
+        job = raw_input("Job ? ")
+        if not job:
+          break
+        if not self.PrintJob(jobs, job):
+          continue
+  
+        # Confirms the admin's intention to execute the job.
+        confirm = raw_input("Confirm execution of this job ? (n/y) ")
+        if len(confirm) == 0 or not confirm[0] == 'y':
+          print("Aborting ...")
+          continue
+  
+        # Processes the job.
+        print("")
+        self._queue.ProcessJob(job)
+        print("")
+    except KeyboardInterrupt:
+      pass
 
     # Eventually destroys the authentication tokens.
-    provisioning_client = GetProvisioningApiClientInstance()
-    if provisioning_client:
-      provisioning_client.LogOut()
-
-    reporting_client = GetReportingApiClientInstance()
-    if reporting_client:
-      reporting_client.LogOut()
+    provisioning.LogOut()
+    reporting.LogOut()

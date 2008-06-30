@@ -460,6 +460,14 @@ def GetProvisioningApiClientInstance(config=None):
     provisioning_api_client = ProvisioningApiClient(config)
   return provisioning_api_client
 
+def LogOut():
+  """Eventually invalidates the provisioning tokens -- when available.
+  Should be called at the end of each session to ensure token safety."""
+  
+  client = GetProvisioningApiClientInstance()
+  if client:
+    client.LogOut()
+
 # Module initialization.
 provisioning_api_client = None
 job.job_registry.Register('u_create', UserCreateJob)
