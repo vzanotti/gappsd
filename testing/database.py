@@ -37,7 +37,7 @@ class TestSQL(mox.MoxTestBase):
                     db=mox.IgnoreArg(),
                     host=mox.IgnoreArg(),
                     passwd=mox.IgnoreArg(),
-                    use_unicode=False,
+                    use_unicode=True,
                     user=mox.IgnoreArg())
     self.mox.ReplayAll()
 
