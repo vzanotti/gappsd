@@ -248,6 +248,24 @@ class TestAccountsReport(mox.MoxTestBase):
     self.accounts.Run()
     self.mox.ResetAll()
 
+    # Account which requires a SQL <-> Reporting synchronization, with an over
+    # long suspension reason.
+    self.sql.Query(mox.IgnoreArg()).AndReturn([{"g_account_name": "foo.bar"}])
+    self.client.GetLatestReportDate().AndReturn(datetime.date(2007, 1, 1))
+    self.client.GetReport(datetime.date(2007, 1, 1), 'accounts').AndReturn([{
+      "account_name": "foo.bar@a.b",
+      "surname": "foo",
+      "given_name": "bar",
+      "suspension_reason": "a" * 257,
+    }])
+    self.accounts.SynchronizeSQLReportingAccounts(
+      mox.IgnoreArg(),
+      mox.ContainsKeyValue("suspension_reason", "a" * 256))
+    self.accounts.Update(job.Job.STATUS_SUCCESS)
+    self.mox.ReplayAll()
+    self.accounts.Run()
+    self.mox.ResetAll()
+
 
 class TestReportingApiClient(mox.MoxTestBase):
   # Redefinition of google.reporting.ReportRunner methods.
