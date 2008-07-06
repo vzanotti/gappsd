@@ -78,6 +78,12 @@ class TestJob(mox.MoxTestBase):
     self.assertRaises(job.JobContentError, job.Job, \
                       self.config, self.sql, self._BADJSON_DICT)
 
+  # Job accessors.
+  def testAccessors(self):
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
+    self.assertEquals(j.status(), (job.Job.STATUS_ACTIVE, 1))
+    self.assertEquals(j.id(), 42)
+
   # Status change tests.
   def testMarkFailed(self):
     self.sql.Update('gapps_queue',
@@ -157,3 +163,7 @@ class TestJob(mox.MoxTestBase):
     j_fail.Update(job.Job.STATUS_HARDFAIL, "bar")
     self.assertEquals(j_fail._data["p_status"], job.Job.STATUS_HARDFAIL)
     self.mox.ResetAll()
+
+  def testStatusOther(self):
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
+    self.assertRaises(job.JobActionError, j.Update, "invalid status")

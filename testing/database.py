@@ -17,6 +17,7 @@
 
 import MySQLdb, MySQLdb.connections, MySQLdb.cursors
 import gappsd.database as database
+import gappsd.logger as logger
 import testing.config
 import mox, unittest
 
@@ -43,6 +44,26 @@ class TestSQL(mox.MoxTestBase):
 
     self.sql._connection = None
     self.sql.Open()
+
+  def testOpenFailed(self):
+    self.mox.StubOutWithMock(MySQLdb, 'connect')
+    MySQLdb.connect(charset='utf8',
+                    db=mox.IgnoreArg(),
+                    host=mox.IgnoreArg(),
+                    passwd=mox.IgnoreArg(),
+                    use_unicode=True,
+                    user=mox.IgnoreArg()).AndRaise(MySQLdb.Error)
+    self.mox.ReplayAll()
+
+    self.sql._connection = None
+    self.assertRaises(logger.TransientError, self.sql.Open)
+
+  def testClose(self):
+    self.sql._connection = self.mox.CreateMock(MySQLdb.connections.Connection)
+    self.sql._connection.close()
+    self.mox.ReplayAll()
+
+    self.sql.Close()
 
   def testQueryCallsOpen(self):
     self.mox.UnsetStubs()

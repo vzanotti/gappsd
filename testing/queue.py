@@ -21,6 +21,7 @@ import gappsd.job as job
 import gappsd.logger as logger
 import gappsd.queue as queue
 import testing.config
+import time
 import mox, unittest
 
 class TestCreateQueueJob(mox.MoxTestBase):
@@ -76,8 +77,15 @@ class TestQueue(mox.MoxTestBase):
     self.assertEquals(delays['normal'], 10)
     self.assertEquals(delays['offline'], 15)
 
+    self.assertRaises(logger.PermanentError,
+                      self.queue._GetCurrentQueueDelays,
+                      {"foo-queue": 42})
+
   def testCanProcessFromQueue(self):
     self.assertEquals(self.queue._CanProcessFromQueue('normal', 10), True)
+    self.assertRaises(logger.PermanentError,
+                      self.queue._CanProcessFromQueue,
+                      'foo-queue', 10)
 
   def testGetNextPriorityQueue(self):
     job_counts = {"immediate": 10, "normal": 10, "offline": 10}
@@ -237,5 +245,14 @@ class TestQueue(mox.MoxTestBase):
     self.assertRaises(logger.CredentialError, self.queue._CheckTransientErrors)
 
   def testRun(self):
-    # TODO(vzanotti): Add unittests for this metod.
-    pass
+    self.mox.StubOutWithMock(self.queue, '_CheckTransientErrors')
+    self.mox.StubOutWithMock(self.queue, '_ProcessNextJob')
+    self.mox.StubOutWithMock(time, 'sleep')
+
+    self.queue._CheckTransientErrors()
+    self.queue._ProcessNextJob()
+    self.sql.Close()
+    time.sleep(4).AndRaise(Exception("out-of-loop"))
+    self.mox.ReplayAll()
+
+    self.assertRaises(Exception, self.queue.Run)

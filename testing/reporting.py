@@ -374,6 +374,17 @@ class TestReportingApiClient(mox.MoxTestBase):
                       datetime.date(2006, 12, 31), 'activity')
     self.mox.ResetAll()
 
+    # Test error handling for unknown API error.
+    kReportError42 = google.reporting.ReportError()
+    kReportError42.reason_code = 42
+    self.reporting.Login()
+    self.reporting.Login()
+    self.reporting.GetReportData(mox.IgnoreArg()).AndRaise(kReportError42)
+    self.mox.ReplayAll()
+    self.assertRaises(logger.TransientError, self.reporting.GetReport,
+                      datetime.date(2006, 12, 31), 'activity')
+    self.mox.ResetAll()
+
   def testGetAbsentReport(self):
     kReportError1045 = google.reporting.ReportError()
     kReportError1045.reason_code = 1045;
