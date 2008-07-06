@@ -31,6 +31,15 @@ class TestAccount(mox.MoxTestBase):
     self.sql = self.mox.CreateMock(database.SQL)
     self.account = account.Account("foo.bar", self._ACCOUNT_DICT)
 
+  def testStandardInit(self):
+    a = account.Account('foo.bar')
+    self.assertEquals(a.get('g_account_name'), 'foo.bar')
+
+  def testInvalidAccountNameInit(self):
+    self.assertRaises(account.AccountContentError,
+                      account.Account,
+                      'foo.bar', {'g_account_name': 'qux.quz'})
+
   def testLoadFromDatabase(self):
     self.sql.Query(mox.IgnoreArg(), mox.IgnoreArg())
     self.sql.Query(mox.IgnoreArg(), ('foo.bar',)).AndReturn([self._ACCOUNT_DICT])
@@ -68,6 +77,14 @@ class TestAccount(mox.MoxTestBase):
 
     self.account.set("g_last_name", "bar")
     self.account.Create(self.sql)
+
+  def testCreateAlreadyExists(self):
+    self.sql.Query(mox.IgnoreArg(),
+                   mox.IgnoreArg()).AndReturn([self._ACCOUNT_DICT])
+    self.mox.ReplayAll()
+
+    self.account.set("g_last_name", "bar")
+    self.assertRaises(account.AccountActionError, self.account.Create, self.sql)
 
   def testUpdate(self):
     self.sql.Update('gapps_accounts',
