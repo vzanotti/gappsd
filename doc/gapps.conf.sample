@@ -24,6 +24,8 @@ admin-email=
 ; Job processing parameters
 ;job-softfail-delay=300  ; Seconds before the next try on softfail.
 ;job-softfail-threshold=4; Number of softfail to become an hardfail.
+;read-only=0             ; Only process jobs that will not change Google Apps
+                         ; side values.
 
 ; Logging parameters
 ;logfile-name=           ; Name of the logfile prefix (use "" for None).

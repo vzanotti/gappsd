@@ -62,6 +62,7 @@ class Config(object):
       'gappsd.queue-delay-normal': 10,
       'gappsd.queue-delay-offline': 30,
       'gappsd.queue-warn-overflow': True,
+      'gappsd.read-only': False,
       'gappsd.token-expiration': 86400,
     }
 

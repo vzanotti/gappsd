@@ -39,6 +39,8 @@ class UserJob(job.Job):
     "suspended": re.compile(r"^(true|false)$", re.I),
   }
 
+  PROP__SIDE_EFFECTS = True
+
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
     self._api_client = GetProvisioningApiClientInstance(config)
@@ -153,6 +155,8 @@ class UserSynchronizeJob(UserJob):
   """Implements the account synchronization job; such a job aims at
   re-synchronizing the SQL database with the Google account database. Also
   implements static synchronization methods."""
+
+  PROP__SIDE_EFFECTS = False
 
   def __init__(self, config, sql, job_dict):
     UserJob.__init__(self, config, sql, job_dict)
@@ -463,7 +467,7 @@ def GetProvisioningApiClientInstance(config=None):
 def LogOut():
   """Eventually invalidates the provisioning tokens -- when available.
   Should be called at the end of each session to ensure token safety."""
-  
+
   client = GetProvisioningApiClientInstance()
   if client:
     client.LogOut()

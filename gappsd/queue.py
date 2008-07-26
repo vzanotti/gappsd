@@ -219,6 +219,11 @@ class Queue(object):
     If not, we manually set the status to success (default).
     """
 
+    if self._config.get_int('gappsd.read-only') and j.HasSideEffects():
+      j.Update(j.STATUS_HARDFAIL, "GAppsd in read-only mode.")
+      logger.info("Cancelled <%s>: gappsd in read-only mode." % j.__str__())
+      return
+
     try:
       logger.info("Starting to process <%s>" % (j.__str__(),))
       old_status = j.status()

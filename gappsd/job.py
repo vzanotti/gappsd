@@ -107,6 +107,10 @@ class Job(object):
   }
   _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
+  # Indicates if the job will have side effects on Google Apps (for instance, if
+  # will change/create/delete user accounts).
+  PROP__SIDE_EFFECTS = True
+
   def __init__(self, config, sql, job_dict):
     """Initializes the job using values offered by the dictionary. Throws
     a JobContentError if an important entry is missing.
@@ -150,6 +154,9 @@ class Job(object):
 
   def id(self):
     return self._data['q_id']
+
+  def HasSideEffects(self):
+    return self.PROP__SIDE_EFFECTS != False
 
   # Status update methods.
   @staticmethod

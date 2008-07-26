@@ -38,6 +38,8 @@ class ActivityJob(job.Job):
     "count_60_day_idle", "count_90_day_idle", "usage_in_bytes", "quota_in_mb",
   ]
 
+  PROP__SIDE_EFFECTS = False
+
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
 
@@ -142,6 +144,8 @@ class AccountsJob(job.Job):
     "given_name":         ["g_first_name",   False],
     "suspension_reason":  ["g_suspension",   True],
   }
+
+  PROP__SIDE_EFFECTS = False
 
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)

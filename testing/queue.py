@@ -167,6 +167,28 @@ class TestQueue(mox.MoxTestBase):
     self.queue._ProcessJob(kTestJob)
     self.mox.ResetAll()
 
+  def testProcessJobReadOnly(self):
+    self.config.set("gappsd.read-only", True)
+    self.queue = queue.Queue(self.config, self.sql)
+    kTestJob = self.mox.CreateMock(job.Job)
+
+    # Tests a read-only job in read-only context.
+    kTestJob.HasSideEffects().AndReturn(False)
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Run()
+    kTestJob.status().AndReturn(('active', 0))
+    kTestJob.Update('success')
+    self.mox.ReplayAll()
+    self.queue._ProcessJob(kTestJob)
+    self.mox.ResetAll()
+
+    # Tests a read-write job in read-only context.
+    kTestJob.HasSideEffects().AndReturn(True)
+    kTestJob.Update('hardfail', mox.IsA(str))
+    self.mox.ReplayAll()
+    self.queue._ProcessJob(kTestJob)
+    self.mox.ResetAll()
+
   def testProcessNextJob(self):
     self.mox.StubOutWithMock(self.queue, "_GetJobCounts")
     self.mox.StubOutWithMock(self.queue, "_GetJobFromQueue")
