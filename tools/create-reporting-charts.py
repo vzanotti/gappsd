@@ -142,16 +142,16 @@ class ChartCreator(object):
   def GetHumanReadableBound(self, value, binary):
     """Returns an human readable value for the upper bound of a range (eg. a
     [0:4269] range would get a 5000 value, which can be reduced then to 5k."""
-    
+
     increment = 1024 if binary else 10
     exponent = int(math.log(value) / math.log(increment))
     upper_bound = math.pow(increment, exponent)
     value /= float(upper_bound)
-    
+
     while binary and value > 16:
       value /= float(16)
       upper_bound *= 16
-      
+
     if value <= 2:
       upper_bound *= 2
     elif value <= 4:
@@ -169,7 +169,7 @@ class ChartCreator(object):
   def GetHumanReadableLabel(self, value, binary):
     """Returns an human readable form of the @p label (using binary format when
     required"""
-    
+
     increment = 1024 if binary else 1000
     exponent = int(math.log(value) / math.log(increment))
     divider = math
@@ -251,7 +251,7 @@ class ChartCreator(object):
       max([data[date]["num_accounts"] for date in day_list if data[date]])
     real_max_value = self.SetChartYAxisLabels(chart, max_value, False)
     normalization_factor = \
-      pygooglechart.SimpleData.max_value() / float(real_max_value)
+      pygooglechart.ExtendedData.max_value() / float(real_max_value)
 
     self.SetChartXAxisLabels(chart, day_list)
 
@@ -328,7 +328,7 @@ class ChartCreator(object):
       max([data[date]["usage_in_bytes"] for date in day_list if data[date]])
     real_max_value = self.SetChartYAxisLabels(chart, max_value, True)
     normalization_factor = \
-      pygooglechart.SimpleData.max_value() / float(real_max_value)
+      pygooglechart.ExtendedData.max_value() / float(real_max_value)
 
     self.SetChartXAxisLabels(chart, day_list)
 
