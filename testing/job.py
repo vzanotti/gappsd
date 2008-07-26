@@ -119,6 +119,16 @@ class TestJob(mox.MoxTestBase):
     self.assertRaises(job.JobActionError, j.Update, job.Job.STATUS_IDLE)
     self.assertRaises(job.JobActionError, j.Update, job.Job.STATUS_ACTIVE)
 
+  def testStatusHardfailMessageOverlong(self):
+    j = job.Job(self.config, self.sql, self._VALID_DICT)
+    self.sql.Update('gapps_queue',
+                    mox.ContainsKeyValue('r_result', 'a' * 256),
+                    mox.IgnoreArg())
+    self.mox.ReplayAll()
+    j.Update(job.Job.STATUS_SOFTFAIL, 'a' * 257)
+    self.assertEqual(j._data['q_id'], 42)
+    self.mox.ResetAll()
+
   def testStatusSoftfail(self):
     j_soft = job.Job(self.config, self.sql, self._VALID_DICT)
     j_hard = job.Job(self.config, self.sql, self._HARDFAIL_DICT)
@@ -140,7 +150,7 @@ class TestJob(mox.MoxTestBase):
                     mox.IgnoreArg())
     self.mox.ReplayAll()
     j_hard.Update(job.Job.STATUS_SOFTFAIL, "foo")
-    self.assertEqual(j_soft._data['q_id'], 42)
+    self.assertEqual(j_hard._data['q_id'], 43)
     self.mox.ResetAll()
 
   def testStatusSuccessOrFailure(self):

@@ -167,7 +167,7 @@ class Job(object):
     values = {
       "p_status": Job.STATUS_HARDFAIL,
       "p_end_date": datetime.datetime.now().strftime(Job._DATE_FORMAT),
-      "r_result": message,
+      "r_result": message[0:256] if message else message,
     }
     sql.Update("gapps_queue", values, {"q_id": queue_id})
 
@@ -223,14 +223,14 @@ class Job(object):
       values["p_notbefore_date"] = notbefore.strftime(self._DATE_FORMAT)
       values["r_softfail_date"] = now
       values["r_softfail_count"] = self._data['r_softfail_count']
-      values["r_result"] = message
+      values["r_result"] = message[0:256] if message else message
 
     if status in (self.STATUS_SUCCESS, self.STATUS_HARDFAIL):
       # On success or on hardfail, the result message is updated, so is the
       # processing end date.
       values["p_status"] = status
       values["p_end_date"] = now
-      values["r_result"] = message
+      values["r_result"] = message[0:256] if message else message
 
     if not len(values):
       # Status was set to an unknown value, fail.
