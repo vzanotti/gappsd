@@ -18,7 +18,9 @@
 """Implementation of the GApps daemon runner."""
 
 import datetime
+import os
 import pprint
+import sys
 import time
 import traceback
 
@@ -33,15 +35,20 @@ class Daemon(object):
   to a "backup-doing-nothing-but-sending-emails" mode in case of problems."""
 
   _BACKUP_EMAIL_INTERVAL = 3600
-  _TRANSIENT_ERROR_RESTART_DELAY = 600
+  _TRANSIENT_ERROR_RESTART_DELAY = 20
   _TRANSIENT_ERRORS_VALIDITY = 3600
   _TRANSIENT_ERRORS_THRESHOLD = 4
+  _SAFETY_RESTART_DELAY = 10
 
   def __init__(self, config_file, log_to_stderr=False):
     self._config = config.Config(config_file)
     logger.InitializeLogging(self._config, log_to_stderr)
     self._sql = database.SQL(self._config)
     self._transient_errors = []
+
+    max_run_time = self._config.get_int("gappsd.max-run-time")
+    self._deadline = datetime.datetime.now() + \
+        datetime.timedelta(0, max_run_time);
 
   def _RunInBackupMode(self):
     """Runs the GApps daemon in backup mode: every hour, it sends a reminder
@@ -63,6 +70,15 @@ class Daemon(object):
 
     return len(self._transient_errors) >= self._TRANSIENT_ERRORS_THRESHOLD
 
+  def _RestartDaemon(self):
+    """Restarts the Python daemon, using the execl command. This wipe out the
+    current process, and replaces it by a new version."""
+
+    # Wait for a safety interval to avoid execvp flooding.
+    time.sleep(self._SAFETY_RESTART_DELAY)
+
+    os.execvp(sys.argv[0], sys.argv)
+
   def Run(self):
     """Runs the GApps daemon, using the Queue facilities. When a fatal exception
     is catched (ie a Credential, several TransientError, or any other
@@ -70,7 +86,7 @@ class Daemon(object):
 
     while True:
       try:
-        q = queue.Queue(self._config, self._sql)
+        q = queue.Queue(self._config, self._sql, self._deadline)
         q.Run()
       except KeyboardInterrupt, error:
         logger.warning("Received keyboard interruption, aborting gracefully...")
@@ -96,4 +112,13 @@ class Daemon(object):
           "Received unknown exception -- switching to backup mode\n" + \
           traceback.format_exc(error))
         self._RunInBackupMode()
+
+      # Check that we have not run past the deadline. If so, we just reload the
+      # whole program.
+      if datetime.datetime.now() > self._deadline:
+        logger.warning("Went past the runtime deadline, restarting the daemon")
+        provisioning.LogOut()
+        reporting.LogOut()
+        self._RestartDaemon()
+
       time.sleep(self._TRANSIENT_ERROR_RESTART_DELAY)

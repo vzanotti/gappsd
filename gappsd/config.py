@@ -58,6 +58,7 @@ class Config(object):
       'gappsd.logmail-delay': 1800,
       'gappsd.logmail-domain-in-subject': False,
       'gappsd.logmail-smtp': '',
+      'gappsd.max-run-time': 86400,
       'gappsd.queue-min-delay': 2,
       'gappsd.queue-delay-normal': 10,
       'gappsd.queue-delay-offline': 30,

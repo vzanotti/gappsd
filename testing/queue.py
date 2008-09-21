@@ -52,7 +52,8 @@ class TestQueue(mox.MoxTestBase):
     mox.MoxTestBase.setUp(self)
     self.config = testing.config.MockConfig()
     self.sql = self.mox.CreateMock(database.SQL)
-    self.queue = queue.Queue(self.config, self.sql)
+    self.queue = queue.Queue(self.config, self.sql,
+        datetime.datetime.now() + datetime.timedelta(0, 180))
 
   def testCanWarnForOverflow(self):
     self.assertEquals(self.queue._CanWarnForQueueOverflow('normal'), True)
@@ -169,7 +170,8 @@ class TestQueue(mox.MoxTestBase):
 
   def testProcessJobReadOnly(self):
     self.config.set("gappsd.read-only", True)
-    self.queue = queue.Queue(self.config, self.sql)
+    self.queue = queue.Queue(self.config, self.sql,
+        datetime.datetime.now() + datetime.timedelta(0, 180))
     kTestJob = self.mox.CreateMock(job.Job)
 
     # Tests a read-only job in read-only context.

@@ -83,9 +83,10 @@ class Queue(object):
   _CREDENTIAL_ERRORS_THRESHOLD = 2
   _TRANSIENT_ERRORS_THRESHOLD = 4
 
-  def __init__(self, config, sql):
+  def __init__(self, config, sql, deadline):
     self._config = config
     self._sql = sql
+    self._deadline = deadline
     self._min_delay = config.get_int("gappsd.queue-min-delay")
     self._overflow_warning = config.get_int("gappsd.queue-warn-overflow")
 
@@ -326,4 +327,6 @@ class Queue(object):
       self._ProcessNextJob()
       self._sql.Close()
 
+      if datetime.datetime.now() > self._deadline:
+        return
       time.sleep(self._min_delay)
