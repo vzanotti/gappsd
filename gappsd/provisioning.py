@@ -88,7 +88,8 @@ class UserCreateJob(UserJob):
     updates the SQL database."""
 
     # Checks that no account exists with this name.
-    user_entry = self._api_client.TryRetrieveUser(self._parameters["username"])
+    user_entry = self._api_client.TryRetrieveUser(
+        str(self._parameters["username"]))
     if user_entry:
       raise PermanentError("An account for user '%s' already exists." % \
         self._parameters["username"])
@@ -132,7 +133,7 @@ class UserDeleteJob(UserJob):
       return
 
     # Checks that the user entry actually exists.
-    user = self._api_client.TryRetrieveUser(self._parameters["username"])
+    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
     if not user:
       raise PermanentError("User '%s' did not exist. Deletion failed." % \
         self._parameters["username"])
@@ -143,7 +144,7 @@ class UserDeleteJob(UserJob):
         " must remove their admin status first.")
 
     # Removes the account from the databases.
-    self._api_client.DeleteUser(self._parameters["username"])
+    self._api_client.DeleteUser(str(self._parameters["username"]))
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
     if a:
       a.Delete(self._sql)
@@ -250,7 +251,7 @@ class UserSynchronizeJob(UserJob):
     synchronizes them."""
 
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
-    user = self._api_client.TryRetrieveUser(self._parameters["username"])
+    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
     UserSynchronizeJob.Synchronize(self._sql, a, user)
 
     self.Update(self.STATUS_SUCCESS)
@@ -266,7 +267,7 @@ class UserUpdateJob(UserJob):
 
   def Run(self):
     # Retrieves the UserEntry and checks the existence of the user.
-    user = self._api_client.TryRetrieveUser(self._parameters["username"])
+    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
     if not user:
       raise PermanentError( \
         "User '%s' do not exist, cannot update its account." % \
@@ -293,7 +294,7 @@ class UserUpdateJob(UserJob):
     if "suspended" in self._parameters:
       user.login.suspended = self._parameters["suspended"].lower()
 
-    user = self._api_client.UpdateUser(self._parameters["username"], user)
+    user = self._api_client.UpdateUser(str(self._parameters["username"]), user)
 
     # Updates the SQL account.
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
