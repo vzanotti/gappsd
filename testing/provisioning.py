@@ -150,13 +150,13 @@ class TestProvisioningApiClient(mox.MoxTestBase):
     kException200.error_code = gdata.apps.service.ENTITY_DOES_NOT_EXIST
     kException200.reason = ""
 
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndReturn(True)
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndRaise(kException42)
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndRaise(kException200)
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndRaise(Exception)
     self.mox.ReplayAll()
 
@@ -176,11 +176,11 @@ class TestProvisioningApiClient(mox.MoxTestBase):
     kExceptionUser.error_code = gdata.apps.service.USER_SUSPENDED
     kExceptionUser.reason = ""
 
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndReturn(True)
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndRaise(kExceptionEntity)
-    self.service._GetAuthToken().AndReturn(True)
+    self.service.GetClientLoginToken().AndReturn(True)
     self.service.UpdateUser("foo.bar", None).AndRaise(kExceptionUser)
     self.mox.ReplayAll()
 

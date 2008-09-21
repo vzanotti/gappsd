@@ -377,7 +377,7 @@ class ProvisioningApiClient(object):
     then it returns None (instead of raising the appropriate exception).
     """
 
-    if not self._service._GetAuthToken():
+    if not self._service.GetClientLoginToken():
       self._RenewToken()
     if not acceptable_error_codes:
       acceptable_error_codes = ()
