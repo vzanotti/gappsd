@@ -27,18 +27,11 @@ import account, job, queue
 from . import logger
 from .logger import PermanentError, TransientError
 
-class UserJob(job.Job):
-  """Base class for User account manipulation jobs. It provides basic parameter
-  checking as well as initialization."""
+class ProvisioningJob(job.Job):
+  """Base class for provisioning jobs."""
 
-  _FIELDS_REGEXP = {
-    "username": re.compile(r"^[a-z0-9._-]+", re.I),
-    "first_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
-    "last_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
-    "password": re.compile(r"^[a-f0-9]{40}$", re.I),
-    "suspended": re.compile(r"^(true|false)$", re.I),
-  }
-
+  _FIELDS_REGEXP = {}
+  _IS_USERNAME_REQUIRED = True
   PROP__SIDE_EFFECTS = True
 
   def __init__(self, config, sql, job_dict):
@@ -56,7 +49,7 @@ class UserJob(job.Job):
   def _CheckParameters(self):
     """Checks that the JSON-encoded parameters of the job are valid."""
 
-    if not "username" in self._parameters:
+    if self._IS_USERNAME_REQUIRED and not "username" in self._parameters:
       raise job.JobContentError("Field 'username' missing.")
     for field in self._FIELDS_REGEXP:
       if field in self._parameters:
@@ -65,6 +58,19 @@ class UserJob(job.Job):
         if not self._FIELDS_REGEXP[field].match(self._parameters[field]):
           raise job.JobContentError("Field '%s' did not match regexp '%s'." % \
             (field, self._FIELDS_REGEXP[field]))
+
+
+class UserJob(ProvisioningJob):
+  """Base class for User account manipulation jobs. It provides basic parameter
+  checking as well as initialization."""
+
+  _FIELDS_REGEXP = {
+    "username": re.compile(r"^[a-z0-9._-]+", re.I),
+    "first_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
+    "last_name": re.compile(r"^[\w /.'-]{1,40}$", re.I | re.UNICODE),
+    "password": re.compile(r"^[a-f0-9]{40}$", re.I),
+    "suspended": re.compile(r"^(true|false)$", re.I),
+  }
 
 
 class UserCreateJob(UserJob):
@@ -303,6 +309,135 @@ class UserUpdateJob(UserJob):
     self.Update(self.STATUS_SUCCESS)
 
 
+class NicknameJob(ProvisioningJob):
+  """Base class for nicknames jobs. It provides basic parameter checking as well
+  as initialization."""
+
+  _FIELDS_REGEXP = {
+    "username": re.compile(r"^[a-z0-9._-]+", re.I),
+    "nickname": re.compile(r"^[a-z0-9._-]+", re.I),
+  }
+  _IS_NICKNAME_REQUIRED = True
+
+  def _CheckParameters(self):
+    """Checks that the JSON-encoded parameters of the job are valid."""
+
+    ProvisioningJob._CheckParameters(self)
+    if self._IS_NICKNAME_REQUIRED and "nickname" not in self._parameters:
+      raise job.JobContentError("Field 'nickname' missing.")
+
+
+class NicknameCreateJob(NicknameJob):
+  """Implements the nickname creation request."""
+
+  def Run(self):
+    """Creates a new nickname (if the @p nickname did not exist), and updates
+    the SQL database."""
+
+    # Checks that no nickname exists with this name.
+    nickname_entry = self._api_client.TryRetrieveNickname(
+        str(self._parameters["nickname"]))
+    if nickname_entry:
+      raise PermanentError("The nickname '%s' already exists." % \
+        self._parameters["nickname"])
+
+    # Creates the nickname on Google side.
+    nickname = self._api_client.CreateNickname(
+      user_name = self._parameters["username"],
+      nickname = self._parameters["nickname"])
+
+    # Creates the nickname in the SQL database.
+    self._sql.Insert("gapps_nicknames", dict(
+      g_account_name = self._parameters["username"],
+      g_nickname = self._parameters["nickname"],
+    ))
+
+    self.Update(self.STATUS_SUCCESS)
+
+
+class NicknameDeleteJob(NicknameJob):
+  """Implements the nickname deletion request."""
+
+  _IS_USERNAME_REQUIRED = False
+
+  def Run(self):
+    """Processes the account deletetion, with security checks: only
+    administrators can delete accounts, and only normal accounts can be
+    deleted."""
+
+    # Checks that the nickname entry actually exists.
+    nickname = self._api_client.TryRetrieveNickname(
+      str(self._parameters["nickname"]))
+    if not nickname:
+      raise PermanentError("Nickname '%s' did not exist. Deletion failed." % \
+        self._parameters["nickname"])
+
+    # Removes the nickname from the databases.
+    self._api_client.DeleteNickname(str(self._parameters["nickname"]))
+    self._sql.Execute("DELETE FROM gapps_nicknames WHERE g_nickname = %s",
+                      self._parameters["nickname"])
+
+    self.Update(self.STATUS_SUCCESS)
+
+
+class NicknameResyncJob(NicknameJob):
+  """Implements the nickname mass synchronization request."""
+
+  _IS_NICKNAME_REQUIRED = False
+  _IS_USERNAME_REQUIRED = False
+
+  def _GetNicknamesFromGoogle(self):
+    """Retrieves the list of all existing nicknames from Google."""
+
+    nicknames = self._api_client.RetrieveAllNicknames()
+
+    google_nicknames = {}
+    for nickname in nicknames.entry:
+      google_nicknames[nickname.nickname.name] = nickname.login.user_name
+    return google_nicknames
+
+  def _GetNicknamesFromSql(self):
+    """Retrieves the known list of nicknames from MySQL."""
+
+    nicknames = self._sql.Query("SELECT * FROM gapps_nicknames")
+
+    sql_nicknames = {}
+    for nickname in nicknames:
+       sql_nicknames[nickname["g_nickname"]] = nickname["g_account_name"]
+    return sql_nicknames
+
+  def _CreateSqlNickname(self, nickname, username):
+    self._sql.Insert("gapps_nicknames",
+                     dict(g_account_name = username, g_nickname = nickname))
+
+  def _DeleteSqlNickname(self, nickname):
+    self._sql.Execute("DELETE FROM gapps_nicknames WHERE g_nickname = %s",
+                      nickname)
+
+  def Run(self):
+    """Compares nicknames from Google and from Sql, and update the SQL list."""
+
+    google_nicknames = self._GetNicknamesFromGoogle()
+    sql_nicknames = self._GetNicknamesFromSql()
+
+    # Check that Google nicknames are in the SQL database.
+    for nickname in google_nicknames:
+      if nickname not in sql_nicknames:
+        self._CreateSqlNickname(nickname, google_nicknames[nickname])
+      else:
+        if sql_nicknames[nickname] != google_nicknames[nickname]:
+          self._DeleteSqlNickname(nickname)
+          self._CreateSqlNickname(nickname, google_nicknames[nickname])
+
+        del sql_nicknames[nickname]
+
+    # Invalidates SQL-only nicknames.
+    for nickname in sql_nicknames:
+      self._DeleteSqlNickname(nickname)
+
+    self.Update(self.STATUS_SUCCESS)
+
+
 class ProvisioningApiClient(object):
   """Proxy layer between the gappsd framework and the Google Apps Provisioning
   API client. Handles token management (token request, error handling, ...)
@@ -450,10 +585,24 @@ class ProvisioningApiClient(object):
   def DeleteUser(self, *pargs, **nargs):
     return self._ProcessApiRequest(self._service.DeleteUser, pargs, nargs)
 
-  def TryDeleteUser(self, *pargs, **nargs):
+  def CreateNickname(self, *pargs, **nargs):
+    return self._ProcessApiRequest(self._service.CreateNickname, pargs, nargs)
+
+  def DeleteNickname(self, *pargs, **nargs):
+    return self._ProcessApiRequest(self._service.DeleteNickname, pargs, nargs)
+
+  def RetrieveAllNicknames(self, *pargs, **nargs):
     return self._ProcessApiRequest(
-      self._service.DeleteUser, pargs, nargs,
+      self._service.RetrieveAllNicknames, pargs, nargs)
+
+  def RetrieveNickname(self, *pargs, **nargs):
+    return self._ProcessApiRequest(self._service.RetrieveNickname, pargs, nargs)
+
+  def TryRetrieveNickname(self, *pargs, **nargs):
+    return self._ProcessApiRequest(
+      self._service.RetrieveNickname, pargs, nargs,
       (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
+
 
 def GetProvisioningApiClientInstance(config=None):
   """Returns the global provisioning APi client instance (instantiates it if
@@ -479,3 +628,6 @@ job.job_registry.Register('u_create', UserCreateJob)
 job.job_registry.Register('u_delete', UserDeleteJob)
 job.job_registry.Register('u_sync', UserSynchronizeJob)
 job.job_registry.Register('u_update', UserUpdateJob)
+job.job_registry.Register('n_create', NicknameCreateJob)
+job.job_registry.Register('n_delete', NicknameDeleteJob)
+job.job_registry.Register('n_resync', NicknameResyncJob)

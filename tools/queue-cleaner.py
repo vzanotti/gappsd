@@ -47,6 +47,8 @@ class QueueCleaner(object):
     self.RemoveSuccessfulJobs()
     if not self.HasReportingJobs():
       self.AddReportingJobs()
+    if not self.HasNicknameResyncJob():
+      self.AddNicknameResyncJob()
 
   def RemoveFailedJobs(self):
     """Removes old failed unclaimed jobs."""
@@ -69,7 +71,7 @@ class QueueCleaner(object):
     """Indicates whether active reporting update jobs are present or not in the
     job queue."""
 
-    count = self._sql.Query( \
+    count = self._sql.Query(
         """SELECT COUNT(*) AS count
              FROM gapps_queue
             WHERE j_type IN ('r_accounts', 'r_activity') AND p_status = 'idle'""")
@@ -94,6 +96,27 @@ class QueueCleaner(object):
                        p_priority = 'offline',
                        j_type = 'r_activity',
                        j_parameters = NULL""")
+
+  def HasNicknameResyncJob(self):
+    """Indicates whether an active nickname sync job is present in the queue."""
+
+    count = self._sql.Query(
+        """SELECT COUNT(*) AS count
+             FROM gapps_queue
+            WHERE j_type = 'n_resync' AND p_status = 'idle'""")
+    return count[0]["count"]
+
+  def AddNicknameResyncJob(self):
+    """Adds the nickname resync job to the queue."""
+
+    self._sql.Execute( \
+        """INSERT INTO gapps_queue
+                   SET p_entry_date = NOW(),
+                       p_notbefore_date = NOW(),
+                       p_status = 'idle',
+                       p_priority = 'offline',
+                       j_type = 'n_resync',
+                       j_parameters = '{}'""")
 
 
 if __name__ == '__main__':
