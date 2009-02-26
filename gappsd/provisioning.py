@@ -235,7 +235,7 @@ class UserSynchronizeJob(UserJob):
         (account.get("g_account_name"), account.get("g_suspension")))
 
     account_admin = account.get('g_admin') or False
-    admin = user_entry.login.admin == 'true'
+    admin = user_entry.login.extension_attributes['admin'] == 'true'
     if admin and not account_admin:
       logger.error(
         "Account '%s' is now administrator of the domain" % \
@@ -504,7 +504,8 @@ class ProvisioningApiClient(object):
     # TODO(vzanotti): implement.
     pass
 
-  def _ProcessApiRequest(self, method, pargs, nargs, acceptable_error_codes=None):
+  def _ProcessApiRequest(self, method, pargs, nargs,
+                         acceptable_error_codes=None):
     """Common API Request processor: calls a function of the underlying service,
     and process its errors. @p method is a method of the self._service object,
     and @p args is the dictionary of its parameters.

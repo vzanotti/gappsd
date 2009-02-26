@@ -43,7 +43,8 @@ def ErrorHandlerRaise(record):
 class TestSmartSMTPHandler(unittest.TestCase):
   def setUp(self):
     self.config = testing.config.MockConfig()
-    self.handler = logger.SmartSMTPHandler("0.0.0.0", None, None, "a.org", 42)
+    self.handler = logger.SmartSMTPHandler("...", "foo@example.com",
+                                           "foo@example.com", "example.com", 42)
     self.handler.setFormatter(logging.Formatter(None, '%Y-%m-%d %H:%M:%S'))
     self.handler.handleError = ErrorHandlerRaise
     self.record = MockLogRecord()
@@ -51,14 +52,14 @@ class TestSmartSMTPHandler(unittest.TestCase):
   def testAddedRecords(self):
     self.handler._PrepareRecord(self.record)
     self.assertEquals(self.record.asctime, "2007-01-01 00:42:43")
-    self.assertEquals(self.record.domain, "a.org")
+    self.assertEquals(self.record.domain, "example.com")
     self.assertEquals(self.record.message, "line1\nline2\nline3")
     self.assertEquals(self.record.spmessage, "  line2\n  line3")
     self.assertEquals(self.record.subject, "line1")
 
   def testGetSubject(self):
     self.assertEquals(self.handler.getSubject(self.record),
-      "[gappsd-a.org] line1")
+      "[gappsd-example.com] line1")
 
   def testFormat(self):
     self.assertEquals(self.handler.format(self.record),
