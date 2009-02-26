@@ -235,7 +235,7 @@ class UserSynchronizeJob(UserJob):
         (account.get("g_account_name"), account.get("g_suspension")))
 
     account_admin = account.get('g_admin') or False
-    admin = user_entry.login.extension_attributes['admin'] == 'true'
+    admin = user_entry.login.admin == 'true'
     if admin and not account_admin:
       logger.error(
         "Account '%s' is now administrator of the domain" % \
