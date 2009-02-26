@@ -1,0 +1,40 @@
+#! /bin/sh
+# Startup script for gappsd on Debian.
+
+GOOGLEAPPS_PATH="/home/googleapps"
+GOOGLEAPPS_BIN="${GOOGLEAPPS_PATH}/gappsd.py"
+GOOGLEAPPS_CONF="${GOOGLEAPPS_PATH}/etc/gapps.conf"
+
+# Start the daemon.
+start_daemon() {
+  echo -n "Starting the GoogleApps daemon: googleapps"
+  cd "${GOOGLEAPPS_PATH}" || return 1
+  su -s /bin/bash -c "${GOOGLEAPPS_BIN} --config-file ${GOOGLEAPPS_CONF}" googleapps &
+  echo "."
+}
+
+# Stop the daemon.
+stop_daemon() {
+  echo -n "Stopping the GoogleApps daemon: googleapps"
+  pkill -u googleapps python2.5
+  echo "."
+}
+
+
+case "$1" in
+  start)
+    start_daemon
+    ;;
+  stop)
+    stop_daemon
+    ;;
+  restart)
+    stop_daemon
+    sleep 1
+    start_daemon
+    ;;
+  *)
+    echo "Usage: googleapps {start|stop|restart}" >&2
+    exit 3
+    ;;
+esac
