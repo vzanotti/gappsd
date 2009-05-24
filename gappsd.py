@@ -44,6 +44,7 @@ Usage: gappsd.py --config-file <path/to/config.file>
 """
 
 import optparse
+import sys
 import gappsd.daemon
 
 def main():
@@ -54,7 +55,7 @@ def main():
 
   if options.config_file is None:
     print("Error: option --config-file is mandatory.")
-    exit(1)
+    sys.exit(1)
   gappsd.daemon.Daemon(options.config_file, options.verbose or False).Run()
 
 if __name__ == '__main__':

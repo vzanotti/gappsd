@@ -92,7 +92,7 @@ class Daemon(object):
         logger.warning("Received keyboard interruption, aborting gracefully...")
         provisioning.LogOut()
         reporting.LogOut()
-        exit(0)
+        sys.exit(0)
       except CredentialError, error:
         logger.critical(
           "Received CredentialError -- switching to backup mode\n" + error)

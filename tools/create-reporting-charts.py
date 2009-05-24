@@ -371,7 +371,7 @@ if __name__ == '__main__':
 
   if options.config_file is None or options.destination is None:
     print("Error: options --config-file and --destination are mandatory.")
-    exit(1)
+    sys.exit(1)
 
   chart_creator = ChartCreator(options.config_file)
   chart_creator.StoreChartsTo(options.destination, options.prefix)

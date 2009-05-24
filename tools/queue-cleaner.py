@@ -126,7 +126,7 @@ if __name__ == '__main__':
 
   if options.config_file is None:
     print("Error: options --config-file is mandatory.")
-    exit(1)
+    sys.exit(1)
 
   cleaner = QueueCleaner(options.config_file)
   cleaner.CleanQueue()

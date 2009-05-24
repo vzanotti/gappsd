@@ -26,6 +26,7 @@ Usage:
 """
 
 import optparse
+import sys
 import gappsd.cli
 
 def main():
@@ -36,10 +37,10 @@ def main():
 
   if options.admin_email is None:
     print("Error: option --admin-email is mandatory.")
-    exit(1)
+    sys.exit(1)
   if options.config_file is None:
     print("Error: option --config-file is mandatory.")
-    exit(1)
+    sys.exit(1)
   gappsd.cli.Cli(options.config_file, options.admin_email).Run()
 
 if __name__ == '__main__':
