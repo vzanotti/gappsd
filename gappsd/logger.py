@@ -24,6 +24,7 @@ This module shoud be initialized explicitly using InitializeLogging:
 
 import datetime
 import logging, logging.handlers
+import socket
 
 # Exceptions used to indicate the error encountered during job execution.
 class PermanentError(Exception):
@@ -54,6 +55,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
   subject (to avoid flooding the admins)."""
 
   _MAIL_TEMPLATE = \
+    "Host: %(hostname)s\n" \
     "Date: %(asctime)s\n" \
     "Message: %(subject)s\n" \
     "Details:\n%(spmessage)s"
@@ -83,6 +85,7 @@ class SmartSMTPHandler(logging.handlers.SMTPHandler):
 
     record.asctime = self.formatter.formatTime(record, self.formatter.datefmt)
     record.domain = self._domain
+    record.hostname = socket.gethostname()
     record.message = record.getMessage()
     record.spmessage = \
       "\n".join(["  " + line for line in record.message.split('\n')[1:]])
