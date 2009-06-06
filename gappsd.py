@@ -50,13 +50,18 @@ import gappsd.daemon
 def main():
   parser = optparse.OptionParser()
   parser.add_option("-c", "--config-file", action="store", dest="config_file")
+  parser.add_option("-d", "--daemonize", action="store_true", dest="daemonize")
+  parser.add_option("-p", "--pidfile", action="store", dest="pid_file")
   parser.add_option("-v", "--verbose", action="store_true", dest="verbose")
   (options, args) = parser.parse_args()
 
   if options.config_file is None:
     print("Error: option --config-file is mandatory.")
     sys.exit(1)
-  gappsd.daemon.Daemon(options.config_file, options.verbose or False).Run()
+  gappsd.daemon.Daemon(options.config_file,
+                       pid_file=options.pid_file,
+                       daemonize=options.daemonize or False,
+                       log_to_stderr=options.verbose or False).Run()
 
 if __name__ == '__main__':
   main()

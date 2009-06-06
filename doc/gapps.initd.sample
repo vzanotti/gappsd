@@ -1,40 +1,86 @@
 #! /bin/sh
-# Startup script for gappsd on Debian.
 
-GOOGLEAPPS_PATH="/home/googleapps"
-GOOGLEAPPS_BIN="${GOOGLEAPPS_PATH}/gappsd.py"
-GOOGLEAPPS_CONF="${GOOGLEAPPS_PATH}/etc/gapps.conf"
+GAPPS_PATH=/home/googleapps
+GAPPS_USER=googleapps
+GAPPS_GROUP=googleapps
 
-# Start the daemon.
-start_daemon() {
-  echo -n "Starting the GoogleApps daemon: googleapps"
-  cd "${GOOGLEAPPS_PATH}" || return 1
-  su -s /bin/bash -c "${GOOGLEAPPS_BIN} --config-file ${GOOGLEAPPS_CONF}" googleapps &
-  echo "."
+DESC="GoogleApps RPC daemon"
+NAME=python2.5
+SCRIPTNAME=/etc/init.d/googleapps
+PIDFILE=$GAPPS_PATH/gappsd.pid
+DAEMON=$GAPPS_PATH/gappsd.py
+DAEMON_ARGS="--config-file ${GAPPS_PATH}/etc/gapps.conf --pidfile ${PIDFILE} --daemonize"
+
+. /lib/init/vars.sh
+. /lib/lsb/init-functions
+
+do_start()
+{
+	# Return
+	#   0 if daemon has been started
+	#   1 if daemon was already running
+	#   2 if daemon could not be started
+  cd $GAPPS_PATH \
+    || return 2
+	start-stop-daemon --start --quiet --user $GAPPS_USER --group $GAPPS_GROUP --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
+		|| return 1
+	start-stop-daemon --start --quiet --user $GAPPS_USER --group $GAPPS_GROUP --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_ARGS \
+		|| return 2
 }
 
-# Stop the daemon.
-stop_daemon() {
-  echo -n "Stopping the GoogleApps daemon: googleapps"
-  pkill -u googleapps python2.5
-  echo "."
+do_stop()
+{
+	# Return
+	#   0 if daemon has been stopped
+	#   1 if daemon was already stopped
+	#   2 if daemon could not be stopped
+	#   other if a failure occurred
+	start-stop-daemon --stop --quiet --retry=TERM/30/KILL/5 --pidfile $PIDFILE --name $NAME
+  return $?
 }
-
 
 case "$1" in
   start)
-    start_daemon
-    ;;
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	do_start
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+
   stop)
-    stop_daemon
-    ;;
-  restart)
-    stop_daemon
-    sleep 1
-    start_daemon
-    ;;
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	do_stop
+	case "$?" in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		2) [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+
+  restart|force-reload)
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	do_stop
+	case "$?" in
+	  0|1)
+		do_start
+		case "$?" in
+			0) log_end_msg 0 ;;
+			1) log_end_msg 1 ;; # Old process is still running
+			*) log_end_msg 1 ;; # Failed to start
+		esac
+		;;
+	  *)
+	  	# Failed to stop
+		log_end_msg 1
+		;;
+	esac
+	;;
+
   *)
-    echo "Usage: googleapps {start|stop|restart}" >&2
-    exit 3
-    ;;
+	echo "Usage: $SCRIPTNAME {start|stop|restart|force-reload}" >&2
+	exit 3
+	;;
 esac
+
+:
