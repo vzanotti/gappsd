@@ -74,7 +74,7 @@ class Daemon(object):
     """Closes and unlinks the pid file."""
 
     if self._pid_fp:
-      self._pid_fp.Close()
+      self._pid_fp.close()
       self._pid_fp = None
 
     if self._pid_file:
