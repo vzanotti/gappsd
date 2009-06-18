@@ -24,7 +24,7 @@ do_start()
       || return 2
   start-stop-daemon --start --quiet --user $GAPPS_USER --group $GAPPS_GROUP --pidfile $PIDFILE --exec $DAEMON --test > /dev/null \
       || return 1
-  start-stop-daemon --start --quiet --user $GAPPS_USER --group $GAPPS_GROUP --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_ARGS \
+  start-stop-daemon --start --quiet --user $GAPPS_USER --group $GAPPS_GROUP --chuid $GAPPS_USER --pidfile $PIDFILE --exec $DAEMON -- $DAEMON_ARGS \
       || return 2
 }
 
