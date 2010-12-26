@@ -128,6 +128,7 @@ class TestProvisioningApiClient(mox.MoxTestBase):
       self.service)
 
   def testRenewToken(self):
+    self.service.captcha_url = 'http://example.com'
     self.service.ProgrammaticLogin()
     self.service.ProgrammaticLogin().AndRaise(gdata.service.BadAuthentication)
     self.service.ProgrammaticLogin().AndRaise(gdata.service.CaptchaRequired)

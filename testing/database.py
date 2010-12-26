@@ -39,7 +39,8 @@ class TestSQL(mox.MoxTestBase):
                     host=mox.IgnoreArg(),
                     passwd=mox.IgnoreArg(),
                     use_unicode=True,
-                    user=mox.IgnoreArg())
+                    user=mox.IgnoreArg()).AndReturn(self.connection)
+    self.connection.autocommit(True)
     self.mox.ReplayAll()
 
     self.sql._connection = None

@@ -327,6 +327,6 @@ class Queue(object):
       self._ProcessNextJob()
       self._sql.Close()
 
-      if datetime.datetime.now() > self._deadline:
+      if not self._deadline is None and datetime.datetime.now() > self._deadline:
         return
       time.sleep(self._min_delay)

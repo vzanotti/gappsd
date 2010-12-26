@@ -18,6 +18,7 @@
 import datetime
 import gappsd.logger as logger
 import logging
+import re
 import socket
 import sys
 import testing.config
@@ -62,8 +63,10 @@ class TestSmartSMTPHandler(unittest.TestCase):
       "[gappsd-example.com] line1")
 
   def testFormat(self):
-    self.assertEquals(self.handler.format(self.record),
-      "Date: 2007-01-01 00:42:43\nMessage: line1\nDetails:\n  line2\n  line3")
+    record = self.handler.format(self.record)
+    self.assertTrue(re.match(
+      "Host: [a-z._-]+\nDate: 2007-01-01 00:42:43\n"
+      "Message: line1\nDetails:\n  line2\n  line3", record), record)
 
   def testRateLimiter(self):
     """Tests the rate-limiter by sending two times the same message (the first

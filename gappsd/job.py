@@ -224,7 +224,6 @@ class Job(object):
       values["r_softfail_date"] = now
       values["r_softfail_count"] = self._data['r_softfail_count']
       values["r_result"] = str(message)[0:256] if message else message
-      print values
 
     if status in (self.STATUS_SUCCESS, self.STATUS_HARDFAIL):
       # On success or on hardfail, the result message is updated, so is the

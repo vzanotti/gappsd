@@ -67,6 +67,7 @@ class SQL(object):
         self._connection = MySQLdb.connect(
           host=self._host, user=self._user, passwd=self._pass, db=self._db,
           charset='utf8', use_unicode=True)
+        self._connection.autocommit(True)
       except MySQLdb.Error, message:
         raise SQLTransientError("Error: %s" % message)
 

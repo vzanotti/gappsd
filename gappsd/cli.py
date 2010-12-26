@@ -39,7 +39,7 @@ class CliQueue(object):
     self._config = config
     self._sql = sql
     self._jobs = {}
-    self._queue = queue.Queue(config, sql)
+    self._queue = queue.Queue(config, sql, None)
 
   def Jobs(self):
     return self._jobs
