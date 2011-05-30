@@ -334,21 +334,13 @@ class NicknameCreateJob(NicknameJob):
     """Creates a new nickname (if the @p nickname did not exist), and updates
     the SQL database."""
 
-    # Checks that no nickname exists with this name. Only fail if the nickname
-    # is pointing at the wrong username.
+    # Creates the nickname on Google side, but only if it didn't exist.
     nickname_entry = self._api_client.TryRetrieveNickname(
         str(self._parameters["nickname"]))
-    if nickname_entry:
-      if nickname_entry.login.user_name == self._parameters["username"]:
-        self.Update(self.STATUS_SUCCESS)
-        return
-      raise PermanentError("The nickname '%s' already exists." % \
-        self._parameters["nickname"])
-
-    # Creates the nickname on Google side.
-    nickname = self._api_client.CreateNickname(
-      user_name = self._parameters["username"],
-      nickname = self._parameters["nickname"])
+    if not nickname_entry:
+      self._api_client.CreateNickname(
+        user_name = self._parameters["username"],
+        nickname = self._parameters["nickname"])
 
     # Creates the nickname in the SQL database.
     self._sql.Insert("gapps_nicknames", dict(
@@ -369,18 +361,15 @@ class NicknameDeleteJob(NicknameJob):
     administrators can delete accounts, and only normal accounts can be
     deleted."""
 
-    # Checks that the nickname entry actually exists.
+    # Deletes the nickname, but only if it did actually exist.
     nickname = self._api_client.TryRetrieveNickname(
       str(self._parameters["nickname"]))
-    if not nickname:
-      self.Update(self.STATUS_SUCCESS)
-      return
+    if nickname:
+      self._api_client.DeleteNickname(str(self._parameters["nickname"]))
 
     # Removes the nickname from the databases.
-    self._api_client.DeleteNickname(str(self._parameters["nickname"]))
     self._sql.Execute("DELETE FROM gapps_nicknames WHERE g_nickname = %s",
                       self._parameters["nickname"])
-
     self.Update(self.STATUS_SUCCESS)
 
 
