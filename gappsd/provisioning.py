@@ -334,10 +334,14 @@ class NicknameCreateJob(NicknameJob):
     """Creates a new nickname (if the @p nickname did not exist), and updates
     the SQL database."""
 
-    # Checks that no nickname exists with this name.
+    # Checks that no nickname exists with this name. Only fail if the nickname
+    # is pointing at the wrong username.
     nickname_entry = self._api_client.TryRetrieveNickname(
         str(self._parameters["nickname"]))
     if nickname_entry:
+      if nickname_entry.login.user_name == self._parameters["username"]:
+        self.Update(self.STATUS_SUCCESS)
+        return
       raise PermanentError("The nickname '%s' already exists." % \
         self._parameters["nickname"])
 
@@ -369,8 +373,8 @@ class NicknameDeleteJob(NicknameJob):
     nickname = self._api_client.TryRetrieveNickname(
       str(self._parameters["nickname"]))
     if not nickname:
-      raise PermanentError("Nickname '%s' did not exist. Deletion failed." % \
-        self._parameters["nickname"])
+      self.Update(self.STATUS_SUCCESS)
+      return
 
     # Removes the nickname from the databases.
     self._api_client.DeleteNickname(str(self._parameters["nickname"]))
