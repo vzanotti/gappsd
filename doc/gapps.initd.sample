@@ -5,7 +5,7 @@ GAPPS_USER=googleapps
 GAPPS_GROUP=googleapps
 
 DESC="GoogleApps RPC daemon"
-NAME=python2.5
+NAME=python
 SCRIPTNAME=/etc/init.d/googleapps
 PIDFILE=$GAPPS_PATH/gappsd.pid
 DAEMON=$GAPPS_PATH/gappsd.py
