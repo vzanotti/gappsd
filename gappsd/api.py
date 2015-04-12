@@ -51,7 +51,7 @@ def HandleError(error):
     logger.info("HTTP Error: %s", error)
     raise TransientError(error)
   elif isinstance(error, HttpError):
-    if self.rep.status == 500:
+    if error.resp.status == 500:
       logger.info("Internal API Error: %s", error)
       raise TransientError(error)
     else:
