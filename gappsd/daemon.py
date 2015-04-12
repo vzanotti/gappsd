@@ -163,7 +163,6 @@ class Daemon(object):
       except KeyboardInterrupt, error:
         logger.warning("Received keyboard interruption, aborting gracefully...")
         provisioning.LogOut()
-        reporting.LogOut()
         self._ClosePidFile()
         sys.exit(0)
       except CredentialError, error:
@@ -191,7 +190,6 @@ class Daemon(object):
       if datetime.datetime.now() > self._deadline:
         logger.warning("Went past the runtime deadline, restarting the daemon")
         provisioning.LogOut()
-        reporting.LogOut()
         self._RestartDaemon()
 
       time.sleep(self._TRANSIENT_ERROR_RESTART_DELAY)

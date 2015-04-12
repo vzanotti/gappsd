@@ -142,4 +142,3 @@ class Cli(object):
 
     # Eventually destroys the authentication tokens.
     provisioning.LogOut()
-    reporting.LogOut()
