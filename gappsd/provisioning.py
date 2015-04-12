@@ -95,25 +95,22 @@ class UserCreateJob(UserJob):
     updates the SQL database."""
 
     # Checks that no account exists with this name.
-    user_entry = self._api_client.TryRetrieveUser(
-        str(self._parameters["username"]))
+    user_entry = self._api.RetrieveUser(self._parameters["username"])
     if user_entry:
       raise PermanentError("An account for user '%s' already exists." % \
         self._parameters["username"])
 
     # Creates the account on Google side.
-    if "suspended" in self._parameters:
-      suspended = self._parameters["suspended"].lower()
-    else:
-      suspended = 'false'
-
-    user = self._api_client.CreateUser(
-      user_name = self._parameters["username"],
-      family_name = self._parameters["last_name"],
-      given_name = self._parameters["first_name"],
-      password = self._parameters["password"],
-      password_hash_function = "SHA-1",
-      suspended = suspended)
+    user = self._api.CreateUser({
+      'primaryEmail': self._api._GetUsername(self._parameters["username"]),
+      'name': {
+        'familyName': self._parameters["last_name"],
+        'givenName': self._parameters["first_name"],
+      },
+      'password': self._parameters["password"],
+      'hashFunction': 'SHA-1',
+      'suspended': bool(self._parameters.get('suspended', False)),
+    })
 
     # Creates the account in the SQL database.
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
@@ -337,11 +334,11 @@ class NicknameCreateJob(NicknameJob):
     the SQL database."""
 
     # Creates the nickname on Google side, but only if it didn't exist.
-    nickname_entry = self._api_client.TryRetrieveNickname(
-        str(self._parameters["nickname"]))
+    nickname_entry = self._api.RetrieveNickname(
+        self._parameters["username"], self._parameters["nickname"])
     if not nickname_entry:
-      self._api_client.CreateNickname(
-        user_name = self._parameters["username"],
+      self._api.CreateNickname(
+        username = self._parameters["username"],
         nickname = self._parameters["nickname"])
 
     # Creates the nickname in the SQL database.
@@ -436,6 +433,7 @@ class NicknameResyncJob(NicknameJob):
 class ProvisioningApiClient2(object):
   def __init__(self, config):
     self._api = api.GetDirectoryService(config)
+    self._customer = config.get_string('gapps.customer')
     self._domain = ('@%s' % config.get_string('gapps.domain'))
   
   def _GetUsername(self, username):
@@ -444,27 +442,60 @@ class ProvisioningApiClient2(object):
   def _IsNotFoundError(self, error):
     return isinstance(error, HttpError) and error.resp.status == 404
   
+  # Users.
+  
   def RetrieveUser(self, username):
     try:
-      return self._api.users().get(
-          userKey=self._GetUsername(username)).execute()
+      username = self._GetUsername(username)
+      return self._api.users().get(userKey=username).execute()
     except Exception as error:
       return api.HandleErrorAllowMissing(error)
   
+  def CreateUser(self, user):
+    try:
+      return self._api.users().insert(body=user).execute()
+    except Exception as error:
+      return api.HandleError(error)
+  
   def UpdateUser(self, username, user):
     try:
-      return self._api.users().update(
-          userKey=self._GetUsername(username), body=user).execute()
+      username = self._GetUsername(username)
+      return self._api.users().update(userKey=username, body=user).execute()
     except Exception as error:
       return api.HandleError(error)
 
   def DeleteUser(self, username):
     try:
-      return self._api.users().delete(
-          userKey=self._GetUsername(username)).execute()
+      username = self._GetUsername(username)
+      return self._api.users().delete(username).execute()
+    except Exception as error:
+      return api.HandleError(error)
+    
+  # Aliases
+  
+  def RetrieveNicknames(self, username):
+    try:
+      username = self._GetUsername(username)
+      api_request = self._api.users().aliases().list(userKey=username)
+      return api_request.execute().get('aliases', [])
     except Exception as error:
       return api.HandleError(error)
 
+  def CreateNickname(self, username, nickname):
+    try:
+      username = self._GetUsername(username)
+      nickname = self._GetUsername(nickname)
+      return self._api.users().aliases().insert(
+          userKey=username, body={'alias': nickname}).execute()
+    except Exception as error:
+      return api.HandleError(error)
+  
+  def RetrieveNickname(self, username, nickname):
+    nickname = self._GetUsername(nickname)
+    for entry in self.RetrieveNicknames(username):
+      if entry['alias'] == nickname:
+        return entry
+    return None
 
 class ProvisioningApiClient(object):
   """Proxy layer between the gappsd framework and the Google Apps Provisioning
