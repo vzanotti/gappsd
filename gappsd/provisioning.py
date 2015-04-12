@@ -23,7 +23,7 @@ import gdata.apps.service
 import re
 import traceback
 
-import account, job, queue
+import account, api, job, queue
 from . import logger
 from .logger import PermanentError, TransientError
 
@@ -36,6 +36,7 @@ class ProvisioningJob(job.Job):
 
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
+    self._api = ProvisioningApiClient2(config)
     self._api_client = GetProvisioningApiClientInstance(config)
     self._CheckParameters()
 
@@ -188,12 +189,12 @@ class UserSynchronizeJob(UserJob):
   def SynchronizeNoSQL(sql, user_entry):
     """Creates the SQL account based on the Google's UserEntry data."""
 
-    admin = user_entry.login.admin == 'true'
-    suspended = user_entry.login.suspended == 'true'
+    admin = user_entry['isAdmin']
+    suspended = user_entry['suspended']
 
-    a = account.Account(user_entry.login.user_name)
-    a.set('g_first_name', user_entry.name.given_name)
-    a.set('g_last_name', user_entry.name.family_name)
+    a = account.Account(user_entry['primaryEmail'].split('@')[0])
+    a.set('g_first_name', user_entry['name']['givenName'])
+    a.set('g_last_name', user_entry['name']['familyName'])
     a.set('g_status', a.STATUS_DISABLED if suspended else a.STATUS_ACTIVE)
     a.set('g_admin', admin)
     a.Create(sql)
@@ -217,25 +218,26 @@ class UserSynchronizeJob(UserJob):
     """Synchronizes the SQL account with the information contained in the
     Google's UserEntry object."""
 
-    if account.get("g_account_name") != user_entry.login.user_name:
+    user_name = user_entry['primaryEmail'].split('@')[0]
+    if account.get("g_account_name") != user_name:
       raise PermanentError( \
         "Cannot synchronize accounts with different usernanames (%s - %s)" & \
-        (account.get("g_account_name"), user_entry.login.user_name))
+        (account.get("g_account_name"), user_name))
 
     # Updates silently non-critical fields.
-    account.set('g_first_name', user_entry.name.given_name)
-    account.set('g_last_name', user_entry.name.family_name)
+    account.set('g_first_name', user_entry['name']['givenName'])
+    account.set('g_last_name', user_entry['name']['familyName'])
 
     # Updates verbosely critical fields.
     account_suspended = account.get('g_status') or account.STATUS_UNPROVISIONED
-    suspended = user_entry.login.suspended.lower() == 'true'
+    suspended = user_entry['suspended']
     if suspended and account_suspended != account.STATUS_DISABLED:
       logger.error(
         "Account '%s' is now suspended\nreason = '%s'" % \
         (account.get("g_account_name"), account.get("g_suspension")))
 
     account_admin = account.get('g_admin') or False
-    admin = user_entry.login.admin == 'true'
+    admin = user_entry['isAdmin']
     if admin and not account_admin:
       logger.error(
         "Account '%s' is now administrator of the domain" % \
@@ -257,7 +259,7 @@ class UserSynchronizeJob(UserJob):
     synchronizes them."""
 
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
-    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
+    user = self._api.TryRetrieveUser(self._parameters["username"])
     UserSynchronizeJob.Synchronize(self._sql, a, user)
 
     self.Update(self.STATUS_SUCCESS)
@@ -430,6 +432,24 @@ class NicknameResyncJob(NicknameJob):
 
     self.Update(self.STATUS_SUCCESS)
 
+
+class ProvisioningApiClient2(object):
+  def __init__(self, config):
+    self._api = api.GetDirectoryService(config)
+    self._domain = ('@%s' % config.get_string('gapps.domain'))
+  
+  def _GetUsername(self, username):
+    return username if '@' in username else username + self._domain
+  
+  def _IsNotFoundError(self, error):
+    return isinstance(error, HttpError) and error.resp.status == 404
+  
+  def TryRetrieveUser(self, username):
+    try:
+      return self._api.users().get(
+          userKey=self._GetUsername(username)).execute()
+    except Exception as error:
+      return api.HandleErrorAllowMissing(error)
 
 class ProvisioningApiClient(object):
   """Proxy layer between the gappsd framework and the Google Apps Provisioning

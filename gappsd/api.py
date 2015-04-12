@@ -60,3 +60,8 @@ def HandleError(error):
   else:
     logger.info("Unknown error: %s", error)
     raise TransientError(error)
+
+def HandleErrorAllowMissing(error):
+  if isinstance(error, HttpError) and error.resp.status == 404:
+    return None
+  HandleError(error)
