@@ -361,10 +361,12 @@ class NicknameDeleteJob(NicknameJob):
     deleted."""
 
     # Deletes the nickname, but only if it did actually exist.
-    nickname = self._api_client.TryRetrieveNickname(
-      str(self._parameters["nickname"]))
-    if nickname:
-      self._api_client.DeleteNickname(str(self._parameters["nickname"]))
+    nickname_entry = self._api.RetrieveNickname(
+        self._parameters["username"], self._parameters["nickname"])
+    if nickname_entry:
+      self._api.DeleteNickname(
+        username = self._parameters["username"],
+        nickname = self._parameters["nickname"])
 
     # Removes the nickname from the databases.
     self._sql.Execute("DELETE FROM gapps_nicknames WHERE g_nickname = %s",
@@ -496,6 +498,16 @@ class ProvisioningApiClient2(object):
       if entry['alias'] == nickname:
         return entry
     return None
+
+  def DeleteNickname(self, username, nickname):
+    try:
+      username = self._GetUsername(username)
+      nickname = self._GetUsername(nickname)
+      return self._api.users().aliases().delete(
+          userKey=username, alias=nickname).execute()
+    except Exception as error:
+      return api.HandleError(error)
+  
 
 class ProvisioningApiClient(object):
   """Proxy layer between the gappsd framework and the Google Apps Provisioning
@@ -634,23 +646,9 @@ class ProvisioningApiClient(object):
   def DeleteUser(self, *pargs, **nargs):
     return self._ProcessApiRequest(self._service.DeleteUser, pargs, nargs)
 
-  def CreateNickname(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.CreateNickname, pargs, nargs)
-
-  def DeleteNickname(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.DeleteNickname, pargs, nargs)
-
   def RetrieveAllNicknames(self, *pargs, **nargs):
     return self._ProcessApiRequest(
       self._service.RetrieveAllNicknames, pargs, nargs)
-
-  def RetrieveNickname(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.RetrieveNickname, pargs, nargs)
-
-  def TryRetrieveNickname(self, *pargs, **nargs):
-    return self._ProcessApiRequest(
-      self._service.RetrieveNickname, pargs, nargs,
-      (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
 
 
 def GetProvisioningApiClientInstance(config=None):
