@@ -140,18 +140,18 @@ class UserDeleteJob(UserJob):
       return
 
     # Checks that the user entry actually exists.
-    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
+    user = self._api.RetrieveUser(self._parameters["username"])
     if not user:
       raise PermanentError("User '%s' did not exist. Deletion failed." % \
         self._parameters["username"])
 
     # Checks that the job is not requesting the deletion of an administrator.
-    if user.login.admin != 'false':
+    if user['isAdmin']:
       raise PermanentError("Administrators cannot be deleted directly, you" \
         " must remove their admin status first.")
 
     # Removes the account from the databases.
-    self._api_client.DeleteUser(str(self._parameters["username"]))
+    self._api.DeleteUser(self._parameters["username"])
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
     if a:
       a.Delete(self._sql)
@@ -259,7 +259,7 @@ class UserSynchronizeJob(UserJob):
     synchronizes them."""
 
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
-    user = self._api.TryRetrieveUser(self._parameters["username"])
+    user = self._api.RetrieveUser(self._parameters["username"])
     UserSynchronizeJob.Synchronize(self._sql, a, user)
 
     self.Update(self.STATUS_SUCCESS)
@@ -275,7 +275,7 @@ class UserUpdateJob(UserJob):
 
   def Run(self):
     # Retrieves the UserEntry and checks the existence of the user.
-    user = self._api_client.TryRetrieveUser(str(self._parameters["username"]))
+    user = self._api.RetrieveUser(self._parameters["username"])
     if not user:
       raise PermanentError( \
         "User '%s' do not exist, cannot update its account." % \
@@ -284,25 +284,25 @@ class UserUpdateJob(UserJob):
     # In non-privileged mode, refuses to update the password, suspension status,
     # or admin status of an administrator.
     if not self._config.get_int("gappsd.admin-only-jobs"):
-      if "admin" in self._parameters or (user.login.admin == 'true' and \
+      if "admin" in self._parameters or (user['isAdmin'] and \
           ("suspended" in self._parameters or "password" in self._parameters)):
         self.MarkAdmin()
         return
 
     # Updates the Google account.
     if "admin" in self._parameters:
-      user.login.admin = self._parameters["admin"]
+      user['isAdmin'] = self._parameters["admin"]
     if "first_name" in self._parameters:
-      user.name.given_name = self._parameters["first_name"]
+      user['name']['givenName'] = self._parameters["first_name"]
     if "last_name" in self._parameters:
-      user.name.family_name = self._parameters["last_name"]
+      user['name']['familyName'] = self._parameters["last_name"]
     if "password" in self._parameters:
-      user.login.password = self._parameters["password"]
-      user.login.hash_function_name = "SHA-1"
+      user['password'] = self._parameters["password"]
+      user['hashFunction'] = "SHA-1"
     if "suspended" in self._parameters:
-      user.login.suspended = self._parameters["suspended"].lower()
+      user['suspended'] = self._parameters["suspended"].lower()
 
-    user = self._api_client.UpdateUser(str(self._parameters["username"]), user)
+    user = self._api.UpdateUser(self._parameters["username"], user)
 
     # Updates the SQL account.
     a = account.LoadAccountFromDatabase(self._sql, self._parameters["username"])
@@ -444,12 +444,27 @@ class ProvisioningApiClient2(object):
   def _IsNotFoundError(self, error):
     return isinstance(error, HttpError) and error.resp.status == 404
   
-  def TryRetrieveUser(self, username):
+  def RetrieveUser(self, username):
     try:
       return self._api.users().get(
           userKey=self._GetUsername(username)).execute()
     except Exception as error:
       return api.HandleErrorAllowMissing(error)
+  
+  def UpdateUser(self, username, user):
+    try:
+      return self._api.users().update(
+          userKey=self._GetUsername(username), body=user).execute()
+    except Exception as error:
+      return api.HandleError(error)
+
+  def DeleteUser(self, username):
+    try:
+      return self._api.users().delete(
+          userKey=self._GetUsername(username)).execute()
+    except Exception as error:
+      return api.HandleError(error)
+
 
 class ProvisioningApiClient(object):
   """Proxy layer between the gappsd framework and the Google Apps Provisioning
@@ -580,20 +595,9 @@ class ProvisioningApiClient(object):
   def CreateUser(self, *pargs, **nargs):
     return self._ProcessApiRequest(self._service.CreateUser, pargs, nargs)
 
-  def RetrieveUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.RetrieveUser, pargs, nargs)
-
   def TryRetrieveUser(self, *pargs, **nargs):
     return self._ProcessApiRequest(
       self._service.RetrieveUser, pargs, nargs,
-      (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
-
-  def UpdateUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.UpdateUser, pargs, nargs)
-
-  def TryUpdateUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(
-      self._service.UpdateUser, pargs, nargs,
       (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
 
   def DeleteUser(self, *pargs, **nargs):
