@@ -42,7 +42,11 @@ class Config(object):
       'mysql.password': "",
       'mysql.database': None,
 
+      'gapps.customer': None,
       'gapps.domain': None,
+      'gapps.oauth2-client':  None,
+      'gapps.oauth2-secret':  None,
+      'gapps.oauth2-user':  None,
       'gapps.admin-api-username': None,
       'gapps.admin-api-password': None,
       'gapps.admin-email': None,
