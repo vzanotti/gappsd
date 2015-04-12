@@ -20,9 +20,7 @@ Reporting API of Google Apps."""
 
 import csv
 import datetime
-import google.reporting
 import pytz
-import pprint  # TODO
 
 import account, api, job, queue
 from . import logger
@@ -87,7 +85,7 @@ class ActivityJob(job.Job):
         parameters=','.join(self._REPORT_PARAMETERS.keys()))
     try:
       api_response = api_request.execute()
-    except error:
+    except Exception as error:
       api.HandleError(error)
     
     # Extract the relevant information.
@@ -204,7 +202,7 @@ class AccountsJob(job.Job):
     while api_request:
       try:
         api_response = api_request.execute()
-      except error:
+      except Exception as error:
         api.HandleError(error)
       for user in api_response['users']:
         yield {
