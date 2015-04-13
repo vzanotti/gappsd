@@ -22,7 +22,6 @@ Provides a way to execute jobs that the normal gappsd will refuse to execute
 actions such as account deletion).
 """
 
-import getpass
 import config, database, logger, queue
 import job, provisioning, reporting
 
@@ -75,15 +74,10 @@ class Cli(object):
   is used to execute jobs which require special administrative privileges (eg.
   account deletion, or capabilities granting."""
 
-  def __init__(self, config_file, admin_email):
-    """Initializes the CLI using default parameters from the config files, and
-    specialized parameters for the admin credentials."""
-
-    (username, domain) = admin_email.split("@")
+  def __init__(self, config_file):
+    """Initializes the CLI using default parameters from the config files."""
+    
     self._config = config.Config(config_file)
-    self._config.set('gapps.admin-api-username', username)
-    self._config.set('gapps.admin-api-password',
-                     getpass.getpass("%s's password: " % admin_email))
     self._config.set('gappsd.admin-only-jobs', True)
     self._sql = database.SQL(self._config)
     self._queue = CliQueue(self._config, self._sql)

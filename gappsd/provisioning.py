@@ -462,7 +462,7 @@ class ProvisioningApiClient(object):
   def DeleteUser(self, username):
     try:
       username = self._GetUsername(username)
-      return self._api.users().delete(username).execute()
+      return self._api.users().delete(userKey=username).execute()
     except Exception as error:
       return api.HandleError(error)
     
