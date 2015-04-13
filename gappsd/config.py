@@ -47,8 +47,6 @@ class Config(object):
       'gapps.oauth2-client':  None,
       'gapps.oauth2-secret':  None,
       'gapps.oauth2-user':  None,
-      'gapps.admin-api-username': None,
-      'gapps.admin-api-password': None,
       'gapps.admin-email': None,
 
       'gappsd.activity-backlog': 30,

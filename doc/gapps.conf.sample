@@ -6,12 +6,16 @@ password=
 database=
 
 [gapps]
+; Google Apps customer id.
+customer=
+
 ; Google Apps domain.
 domain=
 
-; "Administrative API" account used for API requests.
-admin-api-username=
-admin-api-password=
+; OAuth credentials (email, .p12 key file, and impersonated admin).
+oauth2-client=
+oauth2-secret=
+oauth2-user=
 
 ; Administrators email, for sending warning/error mails.
 admin-email=
