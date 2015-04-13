@@ -185,9 +185,7 @@ class AccountsJob(job.Job):
     sql_select = ", ".join([
       "g_account_id", "g_account_name", "g_first_name", "g_last_name",
       "g_status", "g_suspension", "r_disk_usage",
-      "DATE_FORMAT(r_creation, '%%Y%%m%%d') AS r_creation",
-      "DATE_FORMAT(r_last_login, '%%Y%%m%%d') AS r_last_login",
-      "DATE_FORMAT(r_last_webmail, '%%Y%%m%%d') AS r_last_webmail",
+      "DATE_FORMAT(r_creation, '%%Y-%%m-%%d') AS r_creation",
     ])
     accounts = self._sql.Query("SELECT %s FROM gapps_accounts" % sql_select)
     return dict([(account["g_account_name"], account) for account in accounts])
