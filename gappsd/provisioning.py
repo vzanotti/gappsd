@@ -18,10 +18,7 @@
 """Implements User accounts manipulation jobs, using the Provisioning API
 provided by Google."""
 
-import gdata.service
-import gdata.apps.service
 import re
-import traceback
 
 import account, api, job, queue
 from . import logger
@@ -36,8 +33,7 @@ class ProvisioningJob(job.Job):
 
   def __init__(self, config, sql, job_dict):
     job.Job.__init__(self, config, sql, job_dict)
-    self._api = ProvisioningApiClient2(config)
-    self._api_client = GetProvisioningApiClientInstance(config)
+    self._api = ProvisioningApiClient(config)
     self._CheckParameters()
 
   def __str__(self):
@@ -382,13 +378,10 @@ class NicknameResyncJob(NicknameJob):
 
   def _GetNicknamesFromGoogle(self):
     """Retrieves the list of all existing nicknames from Google."""
-
-    nicknames = self._api_client.RetrieveAllNicknames()
-
-    google_nicknames = {}
-    for nickname in nicknames.entry:
-      google_nicknames[nickname.nickname.name] = nickname.login.user_name
-    return google_nicknames
+    
+    for (username, nicknames) in self._api.RetrieveAllNicknames():
+      for nickname in nicknames:
+        yield (nickname.split('@')[0], username.split('@')[0])
 
   def _GetNicknamesFromSql(self):
     """Retrieves the known list of nicknames from MySQL."""
@@ -411,7 +404,7 @@ class NicknameResyncJob(NicknameJob):
   def Run(self):
     """Compares nicknames from Google and from Sql, and update the SQL list."""
 
-    google_nicknames = self._GetNicknamesFromGoogle()
+    google_nicknames = dict(self._GetNicknamesFromGoogle())
     sql_nicknames = self._GetNicknamesFromSql()
 
     # Check that Google nicknames are in the SQL database.
@@ -432,7 +425,7 @@ class NicknameResyncJob(NicknameJob):
     self.Update(self.STATUS_SUCCESS)
 
 
-class ProvisioningApiClient2(object):
+class ProvisioningApiClient(object):
   def __init__(self, config):
     self._api = api.GetDirectoryService(config)
     self._customer = config.get_string('gapps.customer')
@@ -507,167 +500,22 @@ class ProvisioningApiClient2(object):
           userKey=username, alias=nickname).execute()
     except Exception as error:
       return api.HandleError(error)
+    
+  # Aliases (batch).
   
+  def RetrieveAllNicknames(self):
+    api_request = self._api.users().list(
+        customer=self._customer, maxResults=500)
+    while api_request:
+      try:
+        api_response = api_request.execute()
+      except Exception as error:
+        api.HandleError(error)
+      
+      for user in api_response['users']:
+        yield (user['primaryEmail'], user.get('aliases', []))
+      api_request = self._api.users().list_next(api_request, api_response)
 
-class ProvisioningApiClient(object):
-  """Proxy layer between the gappsd framework and the Google Apps Provisioning
-  API client. Handles token management (token request, error handling, ...)
-  and 'safe' API requests (by only throwing gappsd exceptions).
-
-  Example usage:
-    provisioning = ProvisioningApiClient(config)
-    provisioning.CreateUser(Cf. google/gdata/apps/service.py for usage)
-  """
-
-  def __init__(self, config, apps_service=None):
-    self._domain = config.get_string("gapps.domain")
-    self._admin_password = config.get_string("gapps.admin-api-password")
-    self._admin_email = \
-      "%s@%s" % (config.get_string("gapps.admin-api-username"), self._domain)
-
-    self._service = apps_service
-    if not self._service:
-      self._RenewService()
-
-  def _RenewService(self):
-    """Renew the local AppsService object."""
-
-    del self._service
-    self._service = gdata.apps.service.AppsService( \
-      email=self._admin_email,
-      domain=self._domain,
-      password=self._admin_password)
-
-
-  def _RenewToken(self):
-    """Renews (or requests) a token, by instantiating a new AppsService object.
-    Properly handles raised exception by re-raising the appropriate gappsd
-    exceptions."""
-
-    try:
-      logger.info("Provisioning API - Requesting authentication token")
-      self._service.ProgrammaticLogin()
-      logger.info("Provisioning API - Authentication succedeed")
-    except gdata.service.BadAuthentication, error:
-      logger.critical("Provisioning API - Authentication refused")
-      raise logger.CredentialError("Bad credential for Provisioning API")
-    except gdata.service.CaptchaRequired, error:
-      logger.critical( \
-        "Provisioning API - Captcha required for authentication\n" + \
-        "Please visit:\n  %s\n" % self._service.captcha_url + \
-        "and use %s's identity to solve the captcha.\n" % self._admin_email + \
-        "\nDo not forget to restart gappsd !")
-      raise logger.CredentialError("Captcha required for Provisioning API")
-    except gdata.service.Error, error:
-      logger.info("Provisioning API - Authentication failed with 403 error")
-      raise TransientError( \
-        "403 error while authenticating for Provisioning API")
-    except Exception, error:
-      logger.info("Provisioning API - Authentication failed with unknown error")
-      raise TransientError( \
-        "Other error for Provisioning API authentication:\n%s" % error)
-
-  def LogOut(self):
-    """Invalidates the current token, by calling the logout method on
-    Google-side. Should be called whenever the token will not be used in the
-    future."""
-
-    # TODO(vzanotti): implement.
-    pass
-
-  def _ProcessApiRequest(self, method, pargs, nargs,
-                         acceptable_error_codes=None):
-    """Common API Request processor: calls a function of the underlying service,
-    and process its errors. @p method is a method of the self._service object,
-    and @p args is the dictionary of its parameters.
-
-    If the request fails, and the error code is in the acceptable_error_codes @p
-    then it returns None (instead of raising the appropriate exception).
-    """
-
-    if not self._service.GetClientLoginToken():
-      self._RenewToken()
-    if not acceptable_error_codes:
-      acceptable_error_codes = ()
-
-    try:
-      result = method(*pargs, **nargs)
-    except gdata.apps.service.AppsForYourDomainException, error:
-      if error.error_code == gdata.apps.service.UNKOWN_ERROR:
-        # If HTTP status is 401, it probably means the token is invalid
-        # or expired.
-        if error.args[0]["status"] == 401:
-          logger.info("Provisioning API - got 401 http error code")
-          self._RenewService()
-          raise TransientError("Provisioning API - Invalid token")
-        elif error.args[0]["status"] == 500:
-          logger.info("Provisioning API - Internal Server Error")
-          raise TransientError("Provisioning API - Internal Server Error")
-        else:
-          logger.info("Provisioning API - Unknown error: %s" % error)
-          raise TransientError("Provisioning API - Unknown error: %s" % error)
-
-      # Other errors are permanent and related to the request itself.
-      if not error.error_code in acceptable_error_codes:
-        logger.info("Provisioning API - Permanent error %d" % error.error_code)
-        raise PermanentError("Provisioning API - Error %d (%s)" % \
-          (error.error_code, error.reason))
-      else:
-        result = None
-    except gdata.service.RequestError, error:
-      logger.info("Provisioning API - Request error %d" % \
-        error.args[0]["status"])
-      raise TransientError("Provisioning API - Request error %d (%s)" % \
-        (error.args[0]["status"], error.args[0]["body"]))
-    except Exception, error:
-      logger.info("Provisioning API - Request failed with unknown error")
-      raise TransientError("Other error for Provisioning API request:\n" + \
-        traceback.format_exc(error))
-
-    # Temporary workaround for incorrect UTF-8 processing in gdata-python-client.
-    # Cf. http://groups.google.com/group/google-apps-apis/browse_thread/thread/dfc460bb4ad387fb/74278fcf03db27f8?hl=en#74278fcf03db27f8
-    # Cf. http://code.google.com/p/gdata-python-client/issues/detail?id=101
-    if isinstance(result, gdata.apps.UserEntry):
-      result.name.family_name = result.name.family_name.decode("utf8")
-      result.name.given_name = result.name.given_name.decode("utf8")
-
-    return result
-
-  # Proxy methods, used to normalize the raised exceptions. Methods starting
-  # with "Try" won't raise exceptions on ENTITY_DOES_NOT_EXIST errors.
-  def CreateUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.CreateUser, pargs, nargs)
-
-  def TryRetrieveUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(
-      self._service.RetrieveUser, pargs, nargs,
-      (gdata.apps.service.ENTITY_DOES_NOT_EXIST,))
-
-  def DeleteUser(self, *pargs, **nargs):
-    return self._ProcessApiRequest(self._service.DeleteUser, pargs, nargs)
-
-  def RetrieveAllNicknames(self, *pargs, **nargs):
-    return self._ProcessApiRequest(
-      self._service.RetrieveAllNicknames, pargs, nargs)
-
-
-def GetProvisioningApiClientInstance(config=None):
-  """Returns the global provisioning APi client instance (instantiates it if
-  needed). Returns None if there is no current client and config is None."""
-  global provisioning_api_client
-  if provisioning_api_client is None:
-    if not config:
-      return None
-    provisioning_api_client = ProvisioningApiClient(config)
-  return provisioning_api_client
-
-def LogOut():
-  """Eventually invalidates the provisioning tokens -- when available.
-  Should be called at the end of each session to ensure token safety."""
-
-  client = GetProvisioningApiClientInstance()
-  if client:
-    client.LogOut()
 
 # Module initialization.
 provisioning_api_client = None

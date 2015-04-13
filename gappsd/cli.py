@@ -139,6 +139,3 @@ class Cli(object):
         print("")
     except KeyboardInterrupt:
       pass
-
-    # Eventually destroys the authentication tokens.
-    provisioning.LogOut()
