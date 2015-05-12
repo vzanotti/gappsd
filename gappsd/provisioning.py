@@ -358,10 +358,10 @@ class NicknameDeleteJob(NicknameJob):
 
     # Deletes the nickname, but only if it did actually exist.
     nickname_entry = self._api.RetrieveNickname(
-        self._parameters["username"], self._parameters["nickname"])
+        self._parameters["nickname"], self._parameters["nickname"])
     if nickname_entry:
       self._api.DeleteNickname(
-        username = self._parameters["username"],
+        username = self._parameters["nickname"],
         nickname = self._parameters["nickname"])
 
     # Removes the nickname from the databases.
